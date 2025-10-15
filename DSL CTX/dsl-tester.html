@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSL Tester - Verifica Requisiti Pratiche</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #764ba2;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-right: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .chat-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .message.system {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .message.bot {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .message.user {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            margin-left: auto;
+        }
+
+        .message .role {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .ctx-display {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .ctx-diff {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-collecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-checking {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-complete {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .checklist {
+            margin-top: 15px;
+        }
+
+        .checklist-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .checklist-item.checked {
+            background: #d4edda;
+        }
+
+        .checklist-item.unchecked {
+            background: #f8d7da;
+        }
+
+        .variable-display {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 DSL Tester - Verifica Requisiti Pratiche</h1>
+
+    <div class="container">
+        <!-- Panel DSL Input -->
+        <div class="panel">
+            <h2>📝 DSL Input</h2>
+            <textarea id="dslInput" placeholder="Incolla qui la tua DSL in formato JSON..."></textarea>
+            <button onclick="loadExampleDSL()">Carica Esempio</button>
+            <button onclick="generateCTX()">Genera CTX</button>
+            <button onclick="resetAll()">Reset Tutto</button>
+            <div id="dslError"></div>
+        </div>
+
+        <!-- Panel Simulazione Chat -->
+        <div class="panel">
+            <h2>💬 Simulazione Chat</h2>
+            <div id="statusInfo"></div>
+            <div class="chat-container" id="chatContainer"></div>
+            <div class="input-group">
+                <input type="text" id="userInput" placeholder="Inserisci la tua risposta..." disabled>
+                <button onclick="sendMessage()" id="sendBtn" disabled>Invia</button>
+            </div>
+        </div>
+
+        <!-- Panel CTX Monitor (Full Width) -->
+        <div class="panel full-width">
+            <h2>🔍 CTX Monitor</h2>
+
+            <h3>Variabili Raccolte</h3>
+            <div id="variablesDisplay"></div>
+
+            <h3>Checklist Requisiti</h3>
+            <div id="checklistDisplay" class="checklist"></div>
+
+            <h3>CTX Completa (JSON)</h3>
+            <div class="ctx-display" id="ctxDisplay">Nessuna CTX generata. Inserisci una DSL e clicca su "Genera CTX".</div>
+
+            <h3>Cronologia Modifiche</h3>
+            <div id="ctxHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        // Esempio DSL con evaluation_mode incrementale
+        const exampleDSL = {
+            title: "Assegno unico",
+            evaluation_mode: "incremental",
+            steps: [
+                { var: "reddito", ask: "Qual è il tuo ISEE (in euro)?", type: "number" },
+                { var: "eta_figlio", ask: "Quanti mesi ha il bambino?", type: "number" },
+                { var: "residenza", ask: "Sei residente in Italia? (sì/no)", type: "boolean" }
+            ],
+            reasons_if_fail: [
+                {
+                    when: "reddito > 25000",
+                    reason: "Il reddito ISEE supera il limite di 25.000€.",
+                    check_after_vars: ["reddito"],
+                    blocking: true
+                },
+                {
+                    when: "eta_figlio >= 12",
+                    reason: "Il bambino ha più di 12 mesi, quindi il bonus non è previsto.",
+                    check_after_vars: ["eta_figlio"],
+                    blocking: true
+                },
+                {
+                    when: "residenza === false",
+                    reason: "Il richiedente non è residente in Italia.",
+                    check_after_vars: ["residenza"],
+                    blocking: true
+                }
+            ],
+            next_actions_if_ok: [
+                "Prenota appuntamento con il CAF",
+                "Prepara documento identità e attestazione ISEE"
+            ]
+        };
+
+        let currentCTX = null;
+        let currentDSL = null;
+        let ctxHistoryList = [];
+
+        function loadExampleDSL() {
+            document.getElementById('dslInput').value = JSON.stringify(exampleDSL, null, 2);
+            document.getElementById('dslError').innerHTML = '<div class="success">✓ Esempio DSL caricato</div>';
+            setTimeout(() => document.getElementById('dslError').innerHTML = '', 3000);
+        }
+
+        function generateCTX() {
+            const dslText = document.getElementById('dslInput').value.trim();
+
+            if (!dslText) {
+                document.getElementById('dslError').innerHTML = '<div class="error">❌ Inserisci una DSL valida</div>';
+                return;
+            }
+
+            try {
+                const practice = JSON.parse(dslText);
+                currentDSL = practice;
+
+                // Validazione DSL
+                if (!practice.title || !Array.isArray(practice.steps)) {
+                    throw new Error('DSL deve contenere: title, steps (array)');
+                }
+
+                // ========== CODICE DA "codice creazione CTX 15-10-2025.txt" ==========
+                // 1) Parsifico la DSL (già fatto sopra: practice)
+
+                // 2) Recupero nome pratica dal campo title
+                const practiceCode = practice.title || "pratica_senza_titolo";
+
+                // 3) Estraggo le variabili dai passi
+                const steps = Array.isArray(practice.steps) ? practice.steps : [];
+                const varNames = steps.map(s => s?.var).filter(Boolean);
+
+                // 4) Inizializzo variables e checklist
+                const variables = {};
+                const checklist = {};
+                for (const v of varNames) {
+                    variables[v] = null;
+                    checklist[v] = false;
+                }
+
+                // 5) Sessione / utente
+                const sessionId = String(Date.now());
+                const userId = "test_user";
+
+                // 6) CTX finale
+                currentCTX = {
+                    session_id: sessionId,
+                    user_id: userId,
+                    practice_code: practiceCode,
+                    step_index: 0,
+                    variables,
+                    checklist,
+                    history: [{ role: 'system', msg: 'sessione creata' }],
+                    status: 'collecting',
+                    last_prompt: null,
+                    last_user: null,
+                    last_result: null,
+                };
+                // ========== FINE CODICE CREAZIONE CTX ==========
+
+                // Salva snapshot iniziale
+                ctxHistoryList = [{
+                    timestamp: new Date().toLocaleTimeString(),
+                    action: 'CTX Inizializzata',
+                    ctx: JSON.parse(JSON.stringify(currentCTX))
+                }];
+
+                updateDisplay();
+
+                // Abilita input
+                document.getElementById('userInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+
+                // Aggiungi messaggio iniziale alla chat
+                addChatMessage('system', 'Sessione creata. Inizio raccolta dati.');
+
+                // Fai partire la prima domanda
+                processStep();
+
+                document.getElementById('dslError').innerHTML = '<div class="success">✓ CTX generata con successo!</div>';
+                setTimeout(() => document.getElementById('dslError').innerHTML = '', 3000);
+
+            } catch (e) {
+                document.getElementById('dslError').innerHTML = `<div class="error">❌ Errore: ${e.message}</div>`;
+            }
+        }
+
+        function processStep() {
+            if (!currentCTX || !currentDSL) return;
+
+            // COLLECTING
+            if (currentCTX.status === 'collecting') {
+                const steps = currentDSL.steps || [];
+
+                if (currentCTX.step_index < steps.length) {
+                    const step = steps[currentCTX.step_index];
+                    currentCTX.last_prompt = step.ask;
+                    addChatMessage('bot', step.ask);
+                    saveSnapshot('Richiesta step: ' + step.var);
+                    updateDisplay();
+                } else {
+                    currentCTX.status = 'checking';
+                    processChecking();
+                }
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const msg = input.value.trim();
+
+            if (!msg || !currentCTX) return;
+
+            addChatMessage('user', msg);
+            currentCTX.last_user = msg;
+            input.value = '';
+
+            // Elaborazione messaggio (codice dal file "codice elaborazione DSL")
+            if (currentCTX.status === 'collecting') {
+                processCollecting(msg);
+            } else if (currentCTX.status === 'complete') {
+                if (/reset|ricomincia|nuova/i.test(msg)) {
+                    resetSession();
+                } else {
+                    addChatMessage('bot', "Valutazione già conclusa. Scrivi 'reset' per ricominciare.");
+                }
+            }
+
+            updateDisplay();
+        }
+
+        // Funzione per valutare reasons_if_fail incrementali
+        function evaluateIncrementalReasons(practice, vars, justCollectedVar) {
+            const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
+
+            for (const r of reasons) {
+                const checkAfterVars = Array.isArray(r.check_after_vars) ? r.check_after_vars : [];
+
+                if (checkAfterVars.includes(justCollectedVar)) {
+                    const allVarsAvailable = checkAfterVars.every(v => vars[v] !== null && vars[v] !== undefined);
+
+                    if (allVarsAvailable && r.when) {
+                        try {
+                            const fn = Function(...Object.keys(vars), `return (${r.when});`);
+                            const failed = !!fn(...Object.values(vars));
+
+                            if (failed && r.blocking) {
+                                return {
+                                    failed: true,
+                                    reason: String(r.reason || 'Requisito non soddisfatto.')
+                                };
+                            }
+                        } catch (e) {
+                            console.error('Evaluation error for reason:', e);
+                        }
+                    }
+                }
+            }
+
+            return { failed: false };
+        }
+
+        function processCollecting(msg) {
+            // ========== CODICE CON VALUTAZIONE INCREMENTALE ==========
+            const steps = currentDSL.steps || [];
+            const step = steps[currentCTX.step_index];
+            const evaluationMode = currentDSL.evaluation_mode || 'batch';
+
+            if (!step) return;
+
+            let val = msg;
+
+            // Type conversion
+            if (step.type === 'number') {
+                val = parseFloat(String(msg).replace(',', '.'));
+                if (Number.isNaN(val)) {
+                    const rep = 'Inserisci un numero valido.';
+                    currentCTX.last_prompt = rep;
+                    addChatMessage('bot', rep);
+                    saveSnapshot('Errore validazione numero');
+                    return;
+                }
+            }
+
+            if (step.type === 'boolean') {
+                val = toBool(msg);
+            }
+
+            // Salva valore
+            currentCTX.variables[step.var] = val;
+            currentCTX.checklist[step.var] = true;
+            currentCTX.history.push({ role: 'user', msg });
+            currentCTX.step_index += 1;
+
+            saveSnapshot(`Valore salvato: ${step.var} = ${val}`);
+
+            // VALUTAZIONE INCREMENTALE: se evaluation_mode è "incremental", valuta subito
+            if (evaluationMode === 'incremental') {
+                const evalResult = evaluateIncrementalReasons(currentDSL, currentCTX.variables, step.var);
+
+                if (evalResult.failed) {
+                    currentCTX.last_result = 'non_ammissibile';
+                    currentCTX.status = 'complete';
+
+                    const reply = `Non risulti ammissibile.\n\nMotivo:\n${evalResult.reason}`;
+                    currentCTX.last_prompt = reply;
+
+                    addChatMessage('bot', reply);
+                    saveSnapshot('Valutazione fallita: ' + evalResult.reason);
+                    updateDisplay();
+                    return;
+                }
+            }
+
+            // Prossimo step
+            processStep();
+            // ========== FINE CODICE COLLECTING ==========
+        }
+
+        // Funzione helper per valutare reasons_if_fail
+        function evaluateReasons(practice, vars) {
+            const out = [];
+            const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
+            for (const r of reasons) {
+                try {
+                    const fn = Function(...Object.keys(vars), `return (${r.when});`);
+                    const ok = !!fn(...Object.values(vars));
+                    if (ok) out.push(String(r.reason || 'Requisito non soddisfatto.'));
+                } catch (e) {
+                    console.error('Reason evaluation error:', e);
+                }
+            }
+            return out;
+        }
+
+        function processChecking() {
+            // ========== CODICE CON VALUTAZIONE INCREMENTALE O BATCH ==========
+            const vars = currentCTX.variables || {};
+            const evaluationMode = currentDSL.evaluation_mode || 'batch';
+            let result = 'ammissibile'; // se arrivi qui in incremental mode, sei ammissibile
+            let message = 'Risulti ammissibile!';
+
+            // Se non è incremental mode, valuta tutte le reasons_if_fail ora (batch)
+            if (evaluationMode !== 'incremental') {
+                const reasons = Array.isArray(currentDSL.reasons_if_fail) ? currentDSL.reasons_if_fail : [];
+                const failedReasons = [];
+
+                for (const r of reasons) {
+                    try {
+                        const fn = Function(...Object.keys(vars), `return (${r.when});`);
+                        const failed = !!fn(...Object.values(vars));
+                        if (failed && r.reason) {
+                            failedReasons.push(String(r.reason));
+                        }
+                    } catch (e) {
+                        console.error('Batch evaluation error:', e);
+                    }
+                }
+
+                if (failedReasons.length > 0) {
+                    result = 'non_ammissibile';
+                    message = 'Non risulti ammissibile.';
+                    if (failedReasons.length === 1) {
+                        message += '\n\nMotivo:\n' + failedReasons[0];
+                    } else {
+                        message += '\n\nMotivi:\n- ' + failedReasons.join('\n- ');
+                    }
+                }
+            }
+
+            currentCTX.last_result = result;
+            currentCTX.status = 'complete';
+
+            const suffix = result === 'ammissibile' && Array.isArray(currentDSL.next_actions_if_ok)
+                ? '\n\nProssimi passi:\n- ' + currentDSL.next_actions_if_ok.join('\n- ')
+                : '';
+
+            const reply = `${message}${suffix}`;
+            currentCTX.last_prompt = reply;
+
+            addChatMessage('bot', reply);
+            saveSnapshot('Valutazione completata: ' + result);
+            updateDisplay();
+            // ========== FINE CODICE CHECKING ==========
+        }
+
+        // Funzione helper dal codice elaborazione DSL
+        function toBool(s) {
+            if (typeof s === 'boolean') return s;
+            const t = String(s).toLowerCase().trim();
+            return ['si', 'sì', 'yes', 'y', 'true', '1'].includes(t);
+        }
+
+        function addChatMessage(role, text) {
+            const container = document.getElementById('chatContainer');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+
+            const roleSpan = document.createElement('div');
+            roleSpan.className = 'role';
+            roleSpan.textContent = role === 'system' ? '⚙️ System' : role === 'bot' ? '🤖 Bot' : '👤 User';
+
+            const textDiv = document.createElement('div');
+            textDiv.textContent = text;
+
+            msgDiv.appendChild(roleSpan);
+            msgDiv.appendChild(textDiv);
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function saveSnapshot(action) {
+            ctxHistoryList.push({
+                timestamp: new Date().toLocaleTimeString(),
+                action: action,
+                ctx: JSON.parse(JSON.stringify(currentCTX))
+            });
+        }
+
+        function updateDisplay() {
+            if (!currentCTX) return;
+
+            // Status badge
+            const statusClass = `status-${currentCTX.status}`;
+            const statusText = currentCTX.status.toUpperCase();
+            document.getElementById('statusInfo').innerHTML = `
+                <p>Stato: <span class="status-badge ${statusClass}">${statusText}</span></p>
+                <p>Step: ${currentCTX.step_index} / ${currentDSL?.steps?.length || 0}</p>
+            `;
+
+            // Variables
+            const varsHTML = Object.entries(currentCTX.variables)
+                .map(([key, val]) => `
+                    <div class="variable-display">
+                        <strong>${key}:</strong> ${val !== null ? val : '<i>non ancora fornito</i>'}
+                    </div>
+                `).join('');
+            document.getElementById('variablesDisplay').innerHTML = varsHTML || '<p>Nessuna variabile</p>';
+
+            // Checklist
+            const checklistHTML = Object.entries(currentCTX.checklist)
+                .map(([key, checked]) => `
+                    <div class="checklist-item ${checked ? 'checked' : 'unchecked'}">
+                        <span>${key}</span>
+                        <span>${checked ? '✅' : '❌'}</span>
+                    </div>
+                `).join('');
+            document.getElementById('checklistDisplay').innerHTML = checklistHTML || '<p>Nessun requisito</p>';
+
+            // CTX JSON
+            document.getElementById('ctxDisplay').textContent = JSON.stringify(currentCTX, null, 2);
+
+            // History
+            const historyHTML = ctxHistoryList.map((snapshot, idx) => `
+                <div class="ctx-diff">
+                    <strong>${snapshot.timestamp}</strong> - ${snapshot.action}
+                    <details style="margin-top: 5px;">
+                        <summary style="cursor: pointer;">Mostra CTX</summary>
+                        <pre style="margin-top: 10px; font-size: 11px;">${JSON.stringify(snapshot.ctx, null, 2)}</pre>
+                    </details>
+                </div>
+            `).join('');
+            document.getElementById('ctxHistory').innerHTML = historyHTML || '<p>Nessuna modifica registrata</p>';
+        }
+
+        function resetSession() {
+            if (!currentDSL) return;
+
+            for (const k of Object.keys(currentCTX.variables || {})) {
+                currentCTX.variables[k] = null;
+            }
+            for (const k of Object.keys(currentCTX.checklist || {})) {
+                currentCTX.checklist[k] = false;
+            }
+
+            currentCTX.step_index = 0;
+            currentCTX.status = 'collecting';
+            currentCTX.history = [{ role: 'system', msg: 'sessione resettata' }];
+            currentCTX.last_prompt = null;
+            currentCTX.last_user = null;
+            currentCTX.last_result = null;
+
+            document.getElementById('chatContainer').innerHTML = '';
+            addChatMessage('system', 'Sessione resettata. Ricomincio.');
+
+            saveSnapshot('Reset sessione');
+            processStep();
+        }
+
+        function resetAll() {
+            currentCTX = null;
+            currentDSL = null;
+            ctxHistoryList = [];
+
+            document.getElementById('dslInput').value = '';
+            document.getElementById('chatContainer').innerHTML = '';
+            document.getElementById('ctxDisplay').textContent = 'Nessuna CTX generata. Inserisci una DSL e clicca su "Genera CTX".';
+            document.getElementById('variablesDisplay').innerHTML = '';
+            document.getElementById('checklistDisplay').innerHTML = '';
+            document.getElementById('ctxHistory').innerHTML = '';
+            document.getElementById('statusInfo').innerHTML = '';
+            document.getElementById('userInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('userInput').value = '';
+
+            document.getElementById('dslError').innerHTML = '<div class="success">✓ Reset completato</div>';
+            setTimeout(() => document.getElementById('dslError').innerHTML = '', 3000);
+        }
+
+        // Enter key support
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Load example on start
+        window.addEventListener('load', () => {
+            loadExampleDSL();
+        });
+    </script>
+</body>
+</html>

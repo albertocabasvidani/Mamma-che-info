@@ -1,0 +1,45 @@
+{
+  "title": "Assegno unico",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "reddito",
+      "ask": "Qual è il tuo ISEE (in euro)?",
+      "type": "number"
+    },
+    {
+      "var": "eta_figlio",
+      "ask": "Quanti mesi ha il bambino?",
+      "type": "number"
+    },
+    {
+      "var": "residenza",
+      "ask": "Sei residente in Italia? (sì/no)",
+      "type": "boolean"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "reddito > 25000",
+      "reason": "Il reddito ISEE supera il limite di 25.000€.",
+      "check_after_vars": ["reddito"],
+      "blocking": true
+    },
+    {
+      "when": "eta_figlio >= 12",
+      "reason": "Il bambino ha più di 12 mesi, quindi il bonus non è previsto.",
+      "check_after_vars": ["eta_figlio"],
+      "blocking": true
+    },
+    {
+      "when": "residenza === false",
+      "reason": "Il richiedente non è residente in Italia.",
+      "check_after_vars": ["residenza"],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": [
+    "Prenota appuntamento con il CAF",
+    "Prepara documento identità e attestazione ISEE"
+  ]
+}

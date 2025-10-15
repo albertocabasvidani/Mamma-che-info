@@ -1,0 +1,189 @@
+// =======================
+// Code Runner con valutazione incrementale
+// - Supporta evaluation_mode: "incremental"
+// - Valuta reasons_if_fail dopo ogni step con check_after_vars
+// - Si ferma immediatamente se blocking: true
+// =======================
+
+// prelievo
+const body = $('Flow Runner').first().json;
+let practice = $('Flow Runner').first().json.dsl;   // ora è la singola pratica
+let ctx  = $input.first().json.ctx ?? $input.first().json.CTX; // ctx è sempre presente
+
+// debug input
+console.log('[DBG] body keys:', Object.keys(body || {}));
+console.log('[DBG] ctx.practice_code:', ctx?.practice_code, 'ctx.step_index:', ctx?.step_index, 'ctx.status:', ctx?.status);
+
+if (typeof practice === 'string') {
+  try { practice = JSON.parse(practice); console.log('[DBG] practice parsed'); }
+  catch (e) { console.log('[DBG] practice parse error:', e.message); }
+}
+
+if (!practice || typeof practice !== 'object') {
+  return [{ json: { reply: 'DSL non valida o mancante.', ctx, status: 'error' } }];
+}
+
+// messaggio utente
+const msg = String(body?.message ?? '').trim();
+console.log('[DBG] msg:', msg);
+ctx.last_user = msg;
+
+function toBool(s) {
+  if (typeof s === 'boolean') return s;
+  const t = String(s).toLowerCase().trim();
+  return ['si','sì','yes','y','true','1'].includes(t);
+}
+
+// --- funzione per valutare reasons_if_fail incrementali ---
+function evaluateIncrementalReasons(practice, vars, justCollectedVar) {
+  const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
+
+  for (const r of reasons) {
+    // Controlla se questa reason deve essere valutata ora
+    const checkAfterVars = Array.isArray(r.check_after_vars) ? r.check_after_vars : [];
+
+    // Se check_after_vars include la variabile appena raccolta, valuta
+    if (checkAfterVars.includes(justCollectedVar)) {
+      // Verifica che tutte le variabili necessarie siano disponibili
+      const allVarsAvailable = checkAfterVars.every(v => vars[v] !== null && vars[v] !== undefined);
+
+      if (allVarsAvailable && r.when) {
+        try {
+          const fn = Function(...Object.keys(vars), `return (${r.when});`);
+          const failed = !!fn(...Object.values(vars));
+
+          if (failed && r.blocking) {
+            return {
+              failed: true,
+              reason: String(r.reason || 'Requisito non soddisfatto.')
+            };
+          }
+        } catch (e) {
+          console.error('[DBG] Evaluation error for reason:', e.message);
+        }
+      }
+    }
+  }
+
+  return { failed: false };
+}
+
+// -------- COLLECTING --------
+if (ctx.status === 'collecting') {
+  const steps = Array.isArray(practice.steps) ? practice.steps : [];
+  const step = steps[ctx.step_index];
+  const evaluationMode = practice.evaluation_mode || 'batch'; // default: batch (vecchio comportamento)
+
+  if (step && ctx.last_prompt) {
+    let val = msg;
+
+    // Type conversion
+    if (step.type === 'number') {
+      val = parseFloat(String(msg).replace(',', '.'));
+      if (Number.isNaN(val)) {
+        const rep = 'Inserisci un numero valido.';
+        ctx.last_prompt = rep;
+        return [{ json: { reply: rep, ctx, status: 'collecting' } }];
+      }
+    }
+
+    if (step.type === 'boolean') val = toBool(msg);
+
+    // Salva valore
+    ctx.variables[step.var] = val;
+    ctx.checklist[step.var] = true;
+    ctx.history.push({ role: 'user', msg });
+    ctx.step_index += 1;
+
+    // VALUTAZIONE INCREMENTALE: se evaluation_mode è "incremental", valuta subito
+    if (evaluationMode === 'incremental') {
+      const evalResult = evaluateIncrementalReasons(practice, ctx.variables, step.var);
+
+      if (evalResult.failed) {
+        ctx.last_result = 'non_ammissibile';
+        ctx.status = 'complete';
+
+        const reply = `Non risulti ammissibile.\n\nMotivo:\n${evalResult.reason}`;
+        ctx.last_prompt = reply;
+        return [{ json: { reply, ctx, status: 'complete' } }];
+      }
+    }
+  }
+
+  // Controlla se ci sono altri step
+  if (ctx.step_index < (practice.steps?.length ?? 0)) {
+    const next = practice.steps[ctx.step_index];
+    ctx.last_prompt = next.ask;
+    ctx.status = 'collecting';
+    return [{ json: { reply: next.ask, ctx, status: 'collecting' } }];
+  }
+
+  // Tutti gli step completati, passa a checking
+  ctx.status = 'checking';
+}
+
+// -------- CHECKING --------
+if (ctx.status === 'checking') {
+  const vars = ctx.variables || {};
+  let result = 'ammissibile'; // se arrivi qui in incremental mode, sei ammissibile
+  let message = 'Risulti ammissibile!';
+
+  // Se non è incremental mode, valuta tutte le reasons_if_fail ora
+  const evaluationMode = practice.evaluation_mode || 'batch';
+
+  if (evaluationMode !== 'incremental') {
+    // Modalità batch: valuta tutte le reasons alla fine
+    const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
+    const failedReasons = [];
+
+    for (const r of reasons) {
+      try {
+        const fn = Function(...Object.keys(vars), `return (${r.when});`);
+        const failed = !!fn(...Object.values(vars));
+        if (failed && r.reason) {
+          failedReasons.push(String(r.reason));
+        }
+      } catch (e) {
+        console.error('[DBG] Batch evaluation error:', e.message);
+      }
+    }
+
+    if (failedReasons.length > 0) {
+      result = 'non_ammissibile';
+      message = 'Non risulti ammissibile.';
+      if (failedReasons.length === 1) {
+        message += '\n\nMotivo:\n' + failedReasons[0];
+      } else {
+        message += '\n\nMotivi:\n- ' + failedReasons.join('\n- ');
+      }
+    }
+  }
+
+  ctx.last_result = result;
+  ctx.status = 'complete';
+
+  const suffix = result === 'ammissibile' && Array.isArray(practice.next_actions_if_ok)
+    ? '\n\nProssimi passi:\n- ' + practice.next_actions_if_ok.join('\n- ')
+    : '';
+
+  const reply = `${message}${suffix}`;
+  ctx.last_prompt = reply;
+  return [{ json: { reply, ctx, status: 'complete' } }];
+}
+
+// -------- COMPLETE --------
+if (ctx.status === 'complete') {
+  if (/reset|ricomincia|nuova/i.test(msg)) {
+    ctx.step_index = 0;
+    for (const k of Object.keys(ctx.variables || {})) ctx.variables[k] = null;
+    for (const k of Object.keys(ctx.checklist || {})) ctx.checklist[k] = false;
+    ctx.status = 'collecting';
+    const q = practice.steps[0].ask;
+    ctx.last_prompt = q;
+    return [{ json: { reply: q, ctx, status: 'collecting' } }];
+  }
+  return [{ json: { reply: "Valutazione già conclusa. Scrivi 'reset' per ricominciare.", ctx, status: 'complete' } }];
+}
+
+// -------- FALLBACK (sempre un array) --------
+return [{ json: { reply: 'Stato della CTX non riconosciuto. Imposta correttamente lo stato o reinizializza la sessione.', ctx, status: ctx.status || 'unknown' } }];

@@ -1,0 +1,179 @@
+// =======================
+// Code Runner con messaggi validate generalizzati e reasons_if_fail
+// - Analizza automaticamente il range numerico e genera messaggi chiari
+// - Aggiunge motivi dettagliati di inammissibilità se presenti nella DSL
+// =======================
+
+// prelievo
+const body = $('Flow Runner').first().json;
+let practice = $('Flow Runner').first().json.dsl;   // ora è la singola pratica
+let ctx  = $input.first().json.ctx ?? $input.first().json.CTX; // ctx è sempre presente
+
+// debug input
+console.log('[DBG] body keys:', Object.keys(body || {}));
+console.log('[DBG] ctx.practice_code:', ctx?.practice_code, 'ctx.step_index:', ctx?.step_index, 'ctx.status:', ctx?.status);
+
+if (typeof practice === 'string') {
+  try { practice = JSON.parse(practice); console.log('[DBG] practice parsed'); }
+  catch (e) { console.log('[DBG] practice parse error:', e.message); }
+}
+
+if (!practice || typeof practice !== 'object') {
+  return [{ json: { reply: 'DSL non valida o mancante.', ctx, status: 'error' } }];
+}
+
+// messaggio utente
+const msg = String(body?.message ?? '').trim();
+console.log('[DBG] msg:', msg);
+ctx.last_user = msg;
+
+function toBool(s) {
+  if (typeof s === 'boolean') return s;
+  const t = String(s).toLowerCase().trim();
+  return ['si','sì','yes','y','true','1'].includes(t);
+}
+
+// --- funzione helper per interpretare il range ---
+function parseRange(validateExpr) {
+  // Estrae limiti inferiori e superiori da espressioni tipo v>=0 && v<=36
+  const pattern = /v\s*([<>]=?)\s*([\d.]+)/g;
+  const limits = { min: null, max: null };
+  let match;
+  while ((match = pattern.exec(validateExpr))) {
+    const op = match[1];
+    const val = parseFloat(match[2]);
+    if (op === '>' || op === '>=') limits.min = val;
+    if (op === '<' || op === '<=') limits.max = val;
+  }
+  return limits;
+}
+
+// --- valuta reasons_if_fail a fine verifica ---
+function evaluateReasons(practice, vars) {
+  const out = [];
+  const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
+  for (const r of reasons) {
+    try {
+      const fn = Function(...Object.keys(vars), `return (${r.when});`);
+      const ok = !!fn(...Object.values(vars));
+      if (ok) out.push(String(r.reason || 'Requisito non soddisfatto.'));
+    } catch {}
+  }
+  return out;
+}
+
+// -------- COLLECTING --------
+if (ctx.status === 'collecting') {
+  const steps = Array.isArray(practice.steps) ? practice.steps : [];
+  const step = steps[ctx.step_index];
+
+  if (step && ctx.last_prompt) {
+    let val = msg;
+
+    if (step.type === 'number') {
+      val = parseFloat(String(msg).replace(',', '.'));
+      if (Number.isNaN(val)) {
+        const rep = 'Inserisci un numero valido.';
+        ctx.last_prompt = rep;
+        return [{ json: { reply: rep, ctx, status: 'collecting' } }];
+      }
+    }
+
+    if (step.type === 'boolean') val = toBool(msg);
+
+    if (step.validate) {
+      const v = val;
+      let ok = false;
+      try { ok = Function('v', `return (${step.validate});`)(v); } catch {}
+      if (!ok) {
+        // genera messaggio di errore dinamico in base ai limiti trovati
+        const { min, max } = parseRange(step.validate);
+        let customMsg = 'Valore non valido per questo requisito. Riprova.';
+        if (min !== null && max !== null) {
+          customMsg = `Il valore deve essere compreso tra ${min} e ${max}.`;
+        } else if (min !== null && v < min) {
+          customMsg = `Il valore deve essere almeno ${min}.`;
+        } else if (max !== null && v > max) {
+          customMsg = `Il valore non può superare ${max}.`;
+        }
+        ctx.last_prompt = customMsg;
+        return [{ json: { reply: customMsg, ctx, status: 'collecting' } }];
+      }
+    }
+
+    ctx.variables[step.var] = val;
+    ctx.checklist[step.var] = true;
+    ctx.history.push({ role: 'user', msg });
+    ctx.step_index += 1;
+  }
+
+  if (ctx.step_index < (practice.steps?.length ?? 0)) {
+    const next = practice.steps[ctx.step_index];
+    ctx.last_prompt = next.ask;
+    ctx.status = 'collecting';
+    return [{ json: { reply: next.ask, ctx, status: 'collecting' } }];
+  }
+
+  ctx.status = 'checking';
+}
+
+// -------- CHECKING --------
+if (ctx.status === 'checking') {
+  const vars = ctx.variables || {};
+  let result = 'non_ammissibile';
+  let message = 'Valutazione completata.';
+
+  // Valuta le regole
+  for (const rule of (practice.rules || [])) {
+    if (rule.if) {
+      let ok = false;
+      try {
+        const fn = Function(...Object.keys(vars), `return (${rule.if});`);
+        ok = !!fn(...Object.values(vars));
+      } catch {}
+      if (ok) { result = rule.result || 'ammissibile'; message = rule.message || message; break; }
+    } else if (rule.else) { result = rule.else; message = rule.message || message; }
+  }
+
+  // Se non ammissibile, allega i motivi espliciti dalla DSL (se presenti)
+  if (result !== 'ammissibile') {
+    const hits = evaluateReasons(practice, vars);
+    if (hits.length === 1) {
+      message = `${message}
+Motivo: ${hits[0]}`;
+    } else if (hits.length > 1) {
+      message = `${message}
+Motivi:
+- ${hits.join('
+- ')}`;
+    }
+  }
+
+  ctx.last_result = result;
+  ctx.status = 'complete';
+
+  const suffix = result === 'ammissibile' && Array.isArray(practice.next_actions_if_ok)
+    ? '\nProssimi passi:\n- ' + practice.next_actions_if_ok.join('\n- ')
+    : '';
+
+  const reply = `${message}${suffix}`;
+  ctx.last_prompt = reply;
+  return [{ json: { reply, ctx, status: 'complete' } }];
+}
+
+// -------- COMPLETE --------
+if (ctx.status === 'complete') {
+  if (/reset|ricomincia|nuova/i.test(msg)) {
+    ctx.step_index = 0;
+    for (const k of Object.keys(ctx.variables || {})) ctx.variables[k] = null;
+    for (const k of Object.keys(ctx.checklist || {})) ctx.checklist[k] = false;
+    ctx.status = 'collecting';
+    const q = practice.steps[0].ask;
+    ctx.last_prompt = q;
+    return [{ json: { reply: q, ctx, status: 'collecting' } }];
+  }
+  return [{ json: { reply: "Valutazione già conclusa. Scrivi 'reset' per ricominciare.", ctx, status: 'complete' } }];
+}
+
+// -------- FALLBACK (sempre un array) --------
+return [{ json: { reply: 'Stato della CTX non riconosciuto. Imposta correttamente lo stato o reinizializza la sessione.', ctx, status: ctx.status || 'unknown' } }];

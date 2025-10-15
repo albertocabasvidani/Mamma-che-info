@@ -1,0 +1,139 @@
+{
+  "title": "Bonus nuovi nati",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Il genitore richiedente è cittadino italiano o UE? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "extracom_permesso",
+      "ask": "Se non italiano/UE: è extracomunitario con permesso di soggiorno valido? (sì/no). Se italiano/UE rispondi no.",
+      "type": "boolean"
+    },
+    {
+      "var": "residenza_it",
+      "ask": "Il genitore richiedente è residente in Italia al momento della domanda? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "minore_residente_it",
+      "ask": "Il minore è residente in Italia? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "convivenza",
+      "ask": "Il minore convive con il genitore richiedente? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "evento_tipo",
+      "ask": "Indica l'evento: nascita / adozione / affido",
+      "type": "string"
+    },
+    {
+      "var": "evento_in_italia",
+      "ask": "L'evento (nascita/adozione/affido) è avvenuto in Italia? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "evento_anno_rif",
+      "ask": "L'evento è avvenuto nell'anno di riferimento della richiesta? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "dsu_valida",
+      "ask": "Hai una DSU valida con indicatore ISEE minorenni in corso di validità? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "isee_minorenni",
+      "ask": "Qual è il valore ISEE minorenni (in euro)?",
+      "type": "number"
+    },
+    {
+      "var": "gia_richiesto_altro_genitore",
+      "ask": "Per lo stesso figlio è già stata fatta richiesta dall'altro genitore? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "giorni_dal_parto",
+      "ask": "Se è una nascita: quanti giorni sono passati dal parto? (se adozione/affido inserisci 0)",
+      "type": "number"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "cittadino_italiano_ue === false && extracom_permesso === false",
+      "reason": "Il richiedente deve essere cittadino italiano/UE o extracomunitario con permesso di soggiorno valido.",
+      "check_after_vars": ["cittadino_italiano_ue", "extracom_permesso"],
+      "blocking": true
+    },
+    {
+      "when": "residenza_it === false",
+      "reason": "Il genitore richiedente deve essere residente in Italia.",
+      "check_after_vars": ["residenza_it"],
+      "blocking": true
+    },
+    {
+      "when": "minore_residente_it === false",
+      "reason": "Il minore deve essere residente in Italia.",
+      "check_after_vars": ["minore_residente_it"],
+      "blocking": true
+    },
+    {
+      "when": "convivenza === false",
+      "reason": "Il minore deve convivere con il genitore richiedente.",
+      "check_after_vars": ["convivenza"],
+      "blocking": true
+    },
+    {
+      "when": "!['nascita','adozione','affido'].includes(String(evento_tipo).toLowerCase())",
+      "reason": "L'evento deve essere nascita, adozione o affido.",
+      "check_after_vars": ["evento_tipo"],
+      "blocking": true
+    },
+    {
+      "when": "evento_in_italia === false",
+      "reason": "L'evento deve essere avvenuto in Italia.",
+      "check_after_vars": ["evento_in_italia"],
+      "blocking": true
+    },
+    {
+      "when": "evento_anno_rif === false",
+      "reason": "L'evento deve essere avvenuto nell'anno di riferimento.",
+      "check_after_vars": ["evento_anno_rif"],
+      "blocking": true
+    },
+    {
+      "when": "dsu_valida === false",
+      "reason": "È necessaria una DSU valida con ISEE minorenni.",
+      "check_after_vars": ["dsu_valida"],
+      "blocking": true
+    },
+    {
+      "when": "isee_minorenni > 40000",
+      "reason": "Il valore ISEE minorenni supera il limite di 40.000€.",
+      "check_after_vars": ["isee_minorenni"],
+      "blocking": true
+    },
+    {
+      "when": "gia_richiesto_altro_genitore === true",
+      "reason": "È già stata fatta richiesta dall'altro genitore per lo stesso figlio.",
+      "check_after_vars": ["gia_richiesto_altro_genitore"],
+      "blocking": true
+    },
+    {
+      "when": "String(evento_tipo).toLowerCase() === 'nascita' && giorni_dal_parto > 120",
+      "reason": "Per le nascite, la richiesta deve essere fatta entro 120 giorni dal parto.",
+      "check_after_vars": ["evento_tipo", "giorni_dal_parto"],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": [
+    "Prenota appuntamento con il CAF",
+    "Prepara documento di identità, eventuale permesso di soggiorno e DSU/ISEE minorenni",
+    "Porta certificato/atto relativo a nascita, adozione o affido"
+  ]
+}

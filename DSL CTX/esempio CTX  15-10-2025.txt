@@ -1,0 +1,38 @@
+{
+  "status": "complete",
+  "history": [
+    {
+      "msg": "sessione creata",
+      "role": "system"
+    },
+    {
+      "msg": "10000",
+      "role": "user"
+    },
+    {
+      "msg": "7",
+      "role": "user"
+    },
+    {
+      "msg": "true",
+      "role": "user"
+    }
+  ],
+  "user_id": "1",
+  "checklist": {
+    "reddito": true,
+    "residenza": true,
+    "eta_figlio": true
+  },
+  "last_user": "true",
+  "variables": {
+    "reddito": 10000,
+    "residenza": true,
+    "eta_figlio": 7
+  },
+  "session_id": "90eb032ad293463fa877e59cf8b8aa4c",
+  "step_index": 3,
+  "last_prompt": "Risulti ammissibile. Ti indico i prossimi passi operativi.\nProssimi passi:\n- Prenota appuntamento con il CAF\n- Prepara documento identità e attestazione ISEE",
+  "last_result": "ammissibile",
+  "practice_code": "Bonus nuovi nati"
+}
