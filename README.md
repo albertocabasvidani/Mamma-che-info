@@ -65,6 +65,7 @@ Apri direttamente la demo: https://albertocabasvidani.github.io/Mamma-che-info/
 - `var` (string): Nome variabile dove salvare la risposta
 - `ask` (string): Domanda da porre all'utente
 - `type` (string): `"string"`, `"number"`, o `"boolean"`
+- `skip_if` (string, opzionale): Espressione JavaScript che, se vera, salta questo step
 
 #### Reasons If Fail
 - `when` (string): Espressione JavaScript che ritorna true se la condizione di fallimento è verificata
@@ -83,6 +84,90 @@ Valuta ogni `reasons_if_fail` subito dopo aver raccolto le variabili specificate
 Raccoglie tutte le risposte, poi valuta tutte le `reasons_if_fail` alla fine. Mostra tutti i motivi di inammissibilità insieme.
 
 **Vantaggio**: Controllo completo dello stato prima della decisione finale.
+
+## ⏭️ Skip Condizionale (skip_if)
+
+Il sistema supporta lo skip condizionale di step tramite la proprietà `skip_if`. Questo permette di saltare automaticamente domande non rilevanti in base alle risposte precedenti.
+
+### Sintassi
+
+```json
+{
+  "var": "extracom_permesso",
+  "ask": "È extracomunitario con permesso di soggiorno valido? (sì/no)",
+  "type": "boolean",
+  "skip_if": "cittadino_italiano_ue === true"
+}
+```
+
+### Come Funziona
+
+1. Prima di mostrare uno step, il sistema valuta l'espressione `skip_if`
+2. Se l'espressione ritorna `true`, lo step viene saltato automaticamente
+3. Il sistema passa allo step successivo senza chiedere nulla all'utente
+4. La variabile dello step saltato rimane `null` nel CTX
+
+### Esempi d'Uso
+
+**Esempio 1: Cittadinanza**
+```json
+{
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Il genitore richiedente è cittadino italiano o UE? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "extracom_permesso",
+      "ask": "È extracomunitario con permesso di soggiorno valido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "cittadino_italiano_ue === true"
+    }
+  ]
+}
+```
+
+**Comportamento:**
+- Se l'utente risponde "sì" alla prima domanda → la seconda viene saltata
+- Se l'utente risponde "no" alla prima domanda → la seconda viene posta
+
+**Esempio 2: Tipo di Evento**
+```json
+{
+  "steps": [
+    {
+      "var": "evento_tipo",
+      "ask": "Indica l'evento: nascita / adozione / affido",
+      "type": "string"
+    },
+    {
+      "var": "giorni_dal_parto",
+      "ask": "Quanti giorni sono passati dal parto?",
+      "type": "number",
+      "skip_if": "String(evento_tipo).toLowerCase() !== 'nascita'"
+    }
+  ]
+}
+```
+
+**Comportamento:**
+- Se l'utente risponde "nascita" → viene chiesto "giorni_dal_parto"
+- Se l'utente risponde "adozione" o "affido" → "giorni_dal_parto" viene saltato
+
+### Note Tecniche
+
+- L'espressione `skip_if` ha accesso a tutte le variabili raccolte fino a quel momento
+- Se si verifica un errore nella valutazione di `skip_if`, lo step NON viene saltato (fail-safe)
+- Gli step saltati vengono loggati in console con `[DBG] Skipping step...`
+- Le validazioni in `reasons_if_fail` possono ancora riferirsi a variabili di step saltati (saranno `null`)
+
+### Debugging
+
+Per vedere quali step vengono saltati, apri la console del browser (F12) e cerca i messaggi:
+```
+[DBG] Skipping step 1 (extracom_permesso) - skip_if: cittadino_italiano_ue === true
+```
 
 ## 📂 File Importanti
 
@@ -146,6 +231,87 @@ Il codice in `codice elaborazione DSL incrementale.txt` è progettato per funzio
   "last_prompt": "Prima domanda...",
   "last_user": "",
   "last_result": null  // "ammissibile" | "non_ammissibile"
+}
+```
+
+### Stati del CTX
+
+#### Status Possibili
+- **`"collecting"`**: Raccolta dati in corso (fa domande all'utente)
+- **`"checking"`**: Valutazione finale (solo in batch mode)
+- **`"complete"`**: Processo terminato (ammissibile o non ammissibile)
+
+#### Flusso Stati - Incremental Mode
+
+```
+collecting → collecting → collecting
+     ↓            ↓            ↓
+  (check)      (check)      (check)
+     ↓            ↓            ↓
+   PASS?       FAIL? →  complete (non_ammissibile)
+     ↓
+   PASS?
+     ↓
+complete (ammissibile)
+```
+
+Quando una `reason` con `blocking: true` fallisce, il CTX passa **direttamente** da `"collecting"` a `"complete"` con `last_result: "non_ammissibile"`, saltando lo stato `"checking"`.
+
+#### Flusso Stati - Batch Mode
+
+```
+collecting → collecting → collecting → checking → complete
+                                          ↓
+                                    (valuta tutto)
+                                          ↓
+                              ammissibile / non_ammissibile
+```
+
+#### Esempio CTX - Non Ammissibile (Incremental)
+
+Utente inserisce ISEE = 30000 (> 25000):
+
+```javascript
+{
+  "practice_code": "bonus_nuovi_nati",
+  "step_index": 1,                    // Si ferma allo step che ha fallito
+  "status": "complete",               // Va direttamente a complete
+  "variables": {
+    "reddito": 30000,                 // Solo questa variabile è valorizzata
+    "eta_figlio": null,               // Le altre rimangono null
+    "residenza": null
+  },
+  "checklist": {
+    "reddito": true,                  // Solo questa è completata
+    "eta_figlio": false,
+    "residenza": false
+  },
+  "last_prompt": "Non risulti ammissibile.\n\nMotivo:\nIl reddito ISEE supera il limite di 25.000€.",
+  "last_result": "non_ammissibile"
+}
+```
+
+#### Esempio CTX - Ammissibile (Incremental)
+
+Tutte le risposte passano i controlli:
+
+```javascript
+{
+  "practice_code": "bonus_nuovi_nati",
+  "step_index": 3,                    // Tutti gli step completati
+  "status": "complete",
+  "variables": {
+    "reddito": 20000,
+    "eta_figlio": 6,
+    "residenza": true
+  },
+  "checklist": {
+    "reddito": true,
+    "eta_figlio": true,
+    "residenza": true
+  },
+  "last_prompt": "Risulti ammissibile!\n\nProssimi passi:\n- Prenota appuntamento con il CAF\n- Prepara documento identità e attestazione ISEE",
+  "last_result": "ammissibile"
 }
 ```
 

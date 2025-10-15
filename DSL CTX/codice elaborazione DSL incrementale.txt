@@ -3,6 +3,7 @@
 // - Supporta evaluation_mode: "incremental"
 // - Valuta reasons_if_fail dopo ogni step con check_after_vars
 // - Si ferma immediatamente se blocking: true
+// - Supporta skip_if per saltare step condizionalmente
 // =======================
 
 // prelievo
@@ -68,57 +69,96 @@ function evaluateIncrementalReasons(practice, vars, justCollectedVar) {
   return { failed: false };
 }
 
+// --- funzione per trovare il prossimo step da chiedere ---
+function findNextStep(steps, currentIndex, vars) {
+  for (let i = currentIndex; i < steps.length; i++) {
+    const step = steps[i];
+
+    // Se lo step ha skip_if, valuta la condizione
+    if (step.skip_if) {
+      try {
+        const fn = Function(...Object.keys(vars), `return (${step.skip_if});`);
+        const shouldSkip = !!fn(...Object.values(vars));
+
+        if (shouldSkip) {
+          console.log(`[DBG] Skipping step ${i} (${step.var}) - skip_if: ${step.skip_if}`);
+          continue; // Salta questo step
+        }
+      } catch (e) {
+        console.error('[DBG] Error evaluating skip_if:', e.message);
+        // In caso di errore, non skippa lo step per sicurezza
+      }
+    }
+
+    // Step non skippato, restituiscilo
+    return { index: i, step };
+  }
+
+  // Nessun step trovato
+  return null;
+}
+
 // -------- COLLECTING --------
 if (ctx.status === 'collecting') {
   const steps = Array.isArray(practice.steps) ? practice.steps : [];
-  const step = steps[ctx.step_index];
   const evaluationMode = practice.evaluation_mode || 'batch'; // default: batch (vecchio comportamento)
 
-  if (step && ctx.last_prompt) {
-    let val = msg;
+  // Se c'è un last_prompt, significa che stiamo aspettando la risposta
+  if (ctx.last_prompt && msg) {
+    const currentStep = steps[ctx.step_index];
 
-    // Type conversion
-    if (step.type === 'number') {
-      val = parseFloat(String(msg).replace(',', '.'));
-      if (Number.isNaN(val)) {
-        const rep = 'Inserisci un numero valido.';
-        ctx.last_prompt = rep;
-        return [{ json: { reply: rep, ctx, status: 'collecting' } }];
+    if (currentStep) {
+      let val = msg;
+
+      // Type conversion
+      if (currentStep.type === 'number') {
+        val = parseFloat(String(msg).replace(',', '.'));
+        if (Number.isNaN(val)) {
+          const rep = 'Inserisci un numero valido.';
+          ctx.last_prompt = rep;
+          return [{ json: { reply: rep, ctx, status: 'collecting' } }];
+        }
       }
-    }
 
-    if (step.type === 'boolean') val = toBool(msg);
+      if (currentStep.type === 'boolean') val = toBool(msg);
 
-    // Salva valore
-    ctx.variables[step.var] = val;
-    ctx.checklist[step.var] = true;
-    ctx.history.push({ role: 'user', msg });
-    ctx.step_index += 1;
+      // Salva valore
+      ctx.variables[currentStep.var] = val;
+      ctx.checklist[currentStep.var] = true;
+      ctx.history.push({ role: 'user', msg });
 
-    // VALUTAZIONE INCREMENTALE: se evaluation_mode è "incremental", valuta subito
-    if (evaluationMode === 'incremental') {
-      const evalResult = evaluateIncrementalReasons(practice, ctx.variables, step.var);
+      // VALUTAZIONE INCREMENTALE: se evaluation_mode è "incremental", valuta subito
+      if (evaluationMode === 'incremental') {
+        const evalResult = evaluateIncrementalReasons(practice, ctx.variables, currentStep.var);
 
-      if (evalResult.failed) {
-        ctx.last_result = 'non_ammissibile';
-        ctx.status = 'complete';
+        if (evalResult.failed) {
+          ctx.last_result = 'non_ammissibile';
+          ctx.status = 'complete';
+          ctx.step_index += 1; // incrementa per indicare a quale step si è fermato
 
-        const reply = `Non risulti ammissibile.\n\nMotivo:\n${evalResult.reason}`;
-        ctx.last_prompt = reply;
-        return [{ json: { reply, ctx, status: 'complete' } }];
+          const reply = `Non risulti ammissibile.\n\nMotivo:\n${evalResult.reason}`;
+          ctx.last_prompt = reply;
+          return [{ json: { reply, ctx, status: 'complete' } }];
+        }
       }
+
+      // Incrementa step_index dopo aver salvato e validato
+      ctx.step_index += 1;
     }
   }
 
-  // Controlla se ci sono altri step
-  if (ctx.step_index < (practice.steps?.length ?? 0)) {
-    const next = practice.steps[ctx.step_index];
-    ctx.last_prompt = next.ask;
+  // Trova il prossimo step da chiedere (considera skip_if)
+  const nextStepResult = findNextStep(steps, ctx.step_index, ctx.variables);
+
+  if (nextStepResult) {
+    // Aggiorna step_index al prossimo step valido
+    ctx.step_index = nextStepResult.index;
+    ctx.last_prompt = nextStepResult.step.ask;
     ctx.status = 'collecting';
-    return [{ json: { reply: next.ask, ctx, status: 'collecting' } }];
+    return [{ json: { reply: nextStepResult.step.ask, ctx, status: 'collecting' } }];
   }
 
-  // Tutti gli step completati, passa a checking
+  // Nessun altro step trovato, passa a checking
   ctx.status = 'checking';
 }
 

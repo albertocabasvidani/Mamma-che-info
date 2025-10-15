@@ -9,8 +9,9 @@
     },
     {
       "var": "extracom_permesso",
-      "ask": "Se non italiano/UE: è extracomunitario con permesso di soggiorno valido? (sì/no). Se italiano/UE rispondi no.",
-      "type": "boolean"
+      "ask": "È extracomunitario con permesso di soggiorno valido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "cittadino_italiano_ue === true"
     },
     {
       "var": "residenza_it",
@@ -59,8 +60,9 @@
     },
     {
       "var": "giorni_dal_parto",
-      "ask": "Se è una nascita: quanti giorni sono passati dal parto? (se adozione/affido inserisci 0)",
-      "type": "number"
+      "ask": "Quanti giorni sono passati dal parto?",
+      "type": "number",
+      "skip_if": "String(evento_tipo).toLowerCase() !== 'nascita'"
     }
   ],
   "reasons_if_fail": [

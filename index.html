@@ -445,13 +445,18 @@
             if (currentCTX.status === 'collecting') {
                 const steps = currentDSL.steps || [];
 
-                if (currentCTX.step_index < steps.length) {
-                    const step = steps[currentCTX.step_index];
-                    currentCTX.last_prompt = step.ask;
-                    addChatMessage('bot', step.ask);
-                    saveSnapshot('Richiesta step: ' + step.var);
+                // Trova il prossimo step da chiedere (considera skip_if)
+                const nextStepResult = findNextStep(steps, currentCTX.step_index, currentCTX.variables);
+
+                if (nextStepResult) {
+                    // Aggiorna step_index al prossimo step valido
+                    currentCTX.step_index = nextStepResult.index;
+                    currentCTX.last_prompt = nextStepResult.step.ask;
+                    addChatMessage('bot', nextStepResult.step.ask);
+                    saveSnapshot('Richiesta step: ' + nextStepResult.step.var);
                     updateDisplay();
                 } else {
+                    // Nessun altro step trovato, passa a checking
                     currentCTX.status = 'checking';
                     processChecking();
                 }
@@ -511,6 +516,35 @@
             }
 
             return { failed: false };
+        }
+
+        // Funzione per trovare il prossimo step da chiedere (supporta skip_if)
+        function findNextStep(steps, currentIndex, vars) {
+            for (let i = currentIndex; i < steps.length; i++) {
+                const step = steps[i];
+
+                // Se lo step ha skip_if, valuta la condizione
+                if (step.skip_if) {
+                    try {
+                        const fn = Function(...Object.keys(vars), `return (${step.skip_if});`);
+                        const shouldSkip = !!fn(...Object.values(vars));
+
+                        if (shouldSkip) {
+                            console.log(`[DBG] Skipping step ${i} (${step.var}) - skip_if: ${step.skip_if}`);
+                            continue; // Salta questo step
+                        }
+                    } catch (e) {
+                        console.error('[DBG] Error evaluating skip_if:', e);
+                        // In caso di errore, non skippa lo step per sicurezza
+                    }
+                }
+
+                // Step non skippato, restituiscilo
+                return { index: i, step };
+            }
+
+            // Nessun step trovato
+            return null;
         }
 
         function processCollecting(msg) {
