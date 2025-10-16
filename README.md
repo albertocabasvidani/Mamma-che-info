@@ -330,6 +330,60 @@ Tutte le risposte passano i controlli:
 - Validazioni temporali (entro 120 giorni dal parto)
 - File: `schema-dsl-incrementale.json`
 
+## 🧪 Testing Automatizzato
+
+### Test Runner Node.js
+
+Per testare DSL senza consumare token con browser automation, usa il test runner automatizzato:
+
+```bash
+cd "DSL CTX"
+node dsl-test-runner.js
+```
+
+### Vantaggi
+
+- ⚡ **750x più veloce**: ~2 secondi vs ~25 minuti (Playwright MCP)
+- 💰 **87% risparmio token**: ~5k vs ~40k per 15 test
+- 🔁 **Completamente automatizzato**: nessuna interazione manuale
+- 📊 **Output JSON strutturato**: ideale per CI/CD
+
+### Test Suite Bonus Nuovi Nati
+
+✅ **25 test completati con 100% pass rate**
+
+- **Fase 1**: Test Critici (10 test)
+- **Fase 2**: Edge Cases (5 test)
+- **Fase 3**: Coverage Completa (7 test)
+- **Fase 4**: Stress Tests (3 test)
+
+**Copertura completa**:
+- Tutti gli 11 requisiti DSL testati
+- Tutte le condizioni `skip_if` verificate
+- Tutti i boundary testati (ISEE 0-40000, giorni 0-120)
+- Modalità incremental completamente validata
+
+### Documentazione
+
+Per dettagli completi sul test runner:
+- `DSL CTX/TEST-RUNNER-README.md` - Guida completa
+- `DSL CTX/automated-test-summary.md` - Risultati test
+- `DSL CTX/test-results.json` - Output JSON
+
+### Aggiungere Test
+
+```javascript
+// In dsl-test-runner.js
+const testCases = [
+    {
+        name: 'Test 26: Il tuo nuovo test',
+        inputs: ['sì', 'no', '12345'],
+        expectedResult: 'non_ammissibile',
+        expectedQuestions: 3
+    }
+];
+```
+
 ## 🛠️ Sviluppo
 
 ### Testare Nuova DSL
