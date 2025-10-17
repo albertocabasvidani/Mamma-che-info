@@ -1,0 +1,175 @@
+{
+  "name": "DSL Chat Agent - Generate & Validate",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "chat-trigger-node",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [820, 240],
+      "webhookId": "dsl-chat-agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "window-buffer-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [820, 420]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 4000
+        }
+      },
+      "id": "openai-chat-model",
+      "name": "OpenAI Chat Model - GPT-4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1020, 420],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=Sei un esperto nella generazione e validazione di DSL (Domain Specific Language) per pratiche burocratiche italiane.\n\nIl tuo compito è:\n1. Raccogliere i requisiti per una pratica burocratica dall'utente\n2. Generare una DSL JSON strutturata usando il tool \"generate_dsl\"\n3. Validare la DSL generata usando il tool \"validate_dsl\"\n4. Se la validazione fallisce, analizzare gli errori e chiedere chiarimenti all'utente\n5. Una volta validata, salvare la DSL su Notion usando il tool \"save_to_notion\"\n\nFormato DSL richiesto:\n{\n  \"title\": \"Nome pratica\",\n  \"evaluation_mode\": \"incremental\",\n  \"steps\": [\n    {\n      \"var\": \"nome_variabile\",\n      \"ask\": \"Domanda per l'utente\",\n      \"type\": \"boolean|string|number\",\n      \"skip_if\": \"condizione opzionale\"\n    }\n  ],\n  \"reasons_if_fail\": [\n    {\n      \"when\": \"condizione JavaScript\",\n      \"reason\": \"Spiegazione chiara\",\n      \"check_after_vars\": [\"var1\", \"var2\"],\n      \"blocking\": true\n    }\n  ],\n  \"next_actions_if_ok\": [\"Azione 1\", \"Azione 2\"]\n}\n\nRegole importanti:\n- Ogni step raccoglie UNA sola informazione\n- Usa type: boolean per sì/no, string per scelte multiple, number per valori numerici\n- Per cittadinanza extracomunitaria, crea sempre due step separati\n- Ogni reason deve verificare UN solo requisito\n- check_after_vars deve contenere TUTTE le variabili usate in \"when\"\n- La condition \"when\" deve restituire true quando il requisito FALLISCE\n- Per requisiti \"almeno uno di\", usa AND: var1 === false && var2 === false\n\nProcedura:\n1. Chiedi all'utente di descrivere i requisiti (cittadinanza, ISEE, residenza, tempistiche, ecc.)\n2. Quando hai abbastanza info, chiama generate_dsl\n3. Chiama validate_dsl sulla DSL generata\n4. Se fallisce: analizza diagnostics.questionsForUser e fai le domande all'utente\n5. Con le risposte, rigenera la DSL e ri-valida\n6. Se passa: chiama save_to_notion\n7. Conferma all'utente con il link Notion\n\nSii conversazionale e chiaro. Fai domande specifiche quando serve chiarire requisiti ambigui.",
+        "options": {
+          "systemMessage": "=Sei un assistente esperto in pratiche burocratiche italiane e nella creazione di DSL strutturate."
+        }
+      },
+      "id": "ai-agent-conversational",
+      "name": "AI Agent - Conversational",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1220, 240]
+    },
+    {
+      "parameters": {
+        "name": "generate_dsl",
+        "description": "Genera una DSL JSON da requisiti testuali per una pratica burocratica italiana. Input: testo requisiti. Output: DSL JSON completa.",
+        "workflowCode": "=const requirements = $input.first().json.requirements || $input.first().json.query;\n\n// System prompt con esempi DSL\nconst systemPrompt = `Sei un esperto nella conversione di requisiti burocratici italiani in una DSL (Domain-Specific Language) strutturata.\n\nIl tuo compito è generare un JSON valido che modelli una pratica burocratica secondo questo schema:\n\n**Struttura DSL:**\n{\n  \"title\": \"Nome della pratica\",\n  \"evaluation_mode\": \"incremental\",\n  \"steps\": [ ... ],\n  \"reasons_if_fail\": [ ... ],\n  \"next_actions_if_ok\": [ ... ]\n}\n\n**Regole per gli steps:**\n- Ogni step raccoglie UNA informazione\n- Usa type: \"boolean\" per sì/no, type: \"string\" per scelte multiple, type: \"number\" per valori numerici\n- Aggiungi skip_if quando uno step dipende da condizioni precedenti\n- Per cittadinanza extracomunitaria, crea sempre due step separati: uno per italiani/UE, uno per extracomunitari\n- Le domande devono essere chiare e complete, includendo tutte le opzioni quando rilevante\n\n**Regole per reasons_if_fail:**\n- Ogni reason verifica UN requisito\n- when contiene la condizione JavaScript che determina il fallimento\n- check_after_vars deve contenere TUTTE le variabili usate nel when\n- blocking: true sempre\n- Per requisiti \"almeno uno di questi\", usa condizioni AND (es: var1 === false && var2 === false)\n- La reason deve spiegare chiaramente perché il requisito non è soddisfatto e cosa manca\n\n**Regole per next_actions_if_ok:**\n- Inizia sempre con \"Prenota appuntamento con CAF o Patronato di zona\"\n- Elenca documenti necessari (identità, tessera sanitaria, ecc.)\n- Specifica documenti per casi particolari con prefissi come \"Se cittadino extracomunitario:\", \"Se hai figli disabili:\", ecc.\n\n**Esempio di mappatura:**\nInput: \"ISEE: presenza di una DSU valida con ISEE minorenni ≤ 40.000\"\nOutput:\n{\n  \"var\": \"dsu_valida\",\n  \"ask\": \"Hai una DSU (Dichiarazione Sostitutiva Unica) valida con indicatore ISEE minorenni in corso di validità? (sì/no)\",\n  \"type\": \"boolean\"\n},\n{\n  \"var\": \"isee_minorenni\",\n  \"ask\": \"Qual è il valore ISEE minorenni in euro?\",\n  \"type\": \"number\"\n}\n\nE nella sezione reasons_if_fail:\n{\n  \"when\": \"dsu_valida === false\",\n  \"reason\": \"Requisito ISEE: è necessaria una DSU valida con indicatore ISEE minorenni in corso di validità.\",\n  \"check_after_vars\": [\"dsu_valida\"],\n  \"blocking\": true\n},\n{\n  \"when\": \"isee_minorenni > 40000\",\n  \"reason\": \"Requisito ISEE: il valore dell'indicatore ISEE minorenni deve essere entro 40.000 euro.\",\n  \"check_after_vars\": [\"isee_minorenni\"],\n  \"blocking\": true\n}\n\nGenera SOLO il JSON valido, senza commenti o spiegazioni.`;\n\n// Call OpenAI API (requires OpenAI credentials configured in n8n)\nconst openaiNode = $('OpenAI Chat Model - GPT-4');\nconst response = await openaiNode.invoke({\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: requirements }\n  ]\n});\n\nconst dslText = response.content;\n\n// Parse JSON\ntry {\n  const dsl = JSON.parse(dslText);\n  return { json: { dsl, raw: dslText } };\n} catch (err) {\n  return { json: { error: 'Invalid JSON generated', raw: dslText } };\n}"
+      },
+      "id": "tool-generate-dsl",
+      "name": "Tool: Generate DSL",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1220, 420]
+    },
+    {
+      "parameters": {
+        "name": "validate_dsl",
+        "description": "Valida una DSL JSON eseguendo test automatici. Input: DSL JSON object. Output: {valid: boolean, diagnostics: {...}, testResults: [...]}",
+        "workflowCode": "=const dsl = $input.first().json.dsl;\nconst fs = require('fs');\nconst path = require('path');\n\n// Load validator service\nconst validatorPath = '/mnt/c/claude-code/Mamma che info/DSL CTX/dsl-validator-service.js';\nconst validator = require(validatorPath);\n\n// Run validation\nconst result = validator.validateDSL(dsl);\n\nreturn { json: result };"
+      },
+      "id": "tool-validate-dsl",
+      "name": "Tool: Validate DSL",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1420, 420]
+    },
+    {
+      "parameters": {
+        "name": "save_to_notion",
+        "description": "Salva una DSL validata su Notion database. Input: {dsl: DSL object, sessionId: string}. Output: {saved: boolean, notionUrl: string}",
+        "workflowCode": "=const dsl = $input.first().json.dsl;\nconst sessionId = $input.first().json.sessionId || 'unknown';\n\n// Notion API configuration (replace with your database ID)\nconst NOTION_DATABASE_ID = 'YOUR_NOTION_DATABASE_ID'; // TODO: Replace this\nconst NOTION_TOKEN = 'YOUR_NOTION_INTEGRATION_TOKEN'; // TODO: Replace this or use credentials\n\n// Call Notion API to create page\nconst notionUrl = 'https://api.notion.com/v1/pages';\n\nconst response = await $http.request({\n  method: 'POST',\n  url: notionUrl,\n  headers: {\n    'Authorization': `Bearer ${NOTION_TOKEN}`,\n    'Content-Type': 'application/json',\n    'Notion-Version': '2022-06-28'\n  },\n  body: {\n    parent: { database_id: NOTION_DATABASE_ID },\n    properties: {\n      'Name': {\n        title: [\n          {\n            text: {\n              content: dsl.title || 'Untitled DSL'\n            }\n          }\n        ]\n      },\n      'Evaluation Mode': {\n        select: {\n          name: dsl.evaluation_mode || 'incremental'\n        }\n      },\n      'Steps Count': {\n        number: dsl.steps?.length || 0\n      },\n      'Rules Count': {\n        number: dsl.reasons_if_fail?.length || 0\n      },\n      'Status': {\n        select: {\n          name: 'Validated'\n        }\n      },\n      'Session ID': {\n        rich_text: [\n          {\n            text: {\n              content: sessionId\n            }\n          }\n        ]\n      }\n    },\n    children: [\n      {\n        object: 'block',\n        type: 'heading_2',\n        heading_2: {\n          rich_text: [\n            {\n              type: 'text',\n              text: {\n                content: 'DSL JSON'\n              }\n            }\n          ]\n        }\n      },\n      {\n        object: 'block',\n        type: 'code',\n        code: {\n          language: 'json',\n          rich_text: [\n            {\n              type: 'text',\n              text: {\n                content: JSON.stringify(dsl, null, 2)\n              }\n            }\n          ]\n        }\n      }\n    ]\n  }\n});\n\nconst pageUrl = response.url || 'Unknown';\n\nreturn {\n  json: {\n    saved: true,\n    notionUrl: pageUrl,\n    pageId: response.id\n  }\n};"
+      },
+      "id": "tool-save-notion",
+      "name": "Tool: Save to Notion",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1620, 420]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - GPT-4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Generate DSL": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Validate DSL": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Save to Notion": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Conversational",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-17T00:00:00.000Z",
+  "versionId": "1"
+}
