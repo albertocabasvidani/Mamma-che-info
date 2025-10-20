@@ -1,5 +1,17 @@
 # Architettura Workflow n8n: DSL Chat Agent
 
+## Contenuti Cartella Progetto
+
+Sistema di generazione automatica di DSL JSON per verifica requisiti pratiche burocratiche italiane, con chat agent conversazionale, validazione schema e test runner locale.
+
+**File principali:**
+- `nodo-code-generazione-prompt.js` - Generatore prompt OpenAI (modalità generazione/correzione)
+- `dsl-schema-validator.js` - Validatore schema DSL
+- `dsl-creation-test/` - Test runner locale per DSL generation loop
+- Esempi DSL: Assegno Unico, Congedo Maternità, Bonus Nido
+
+---
+
 ## 1. Overview
 
 ### Scopo
