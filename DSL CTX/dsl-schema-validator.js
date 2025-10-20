@@ -1,5 +1,5 @@
 // Ottieni input dal nodo precedente
-const input = $input.first().json;
+const input = $input.first().json.message.content;
 
 // Estrai DSL (può essere wrappato in campo "dsl" o diretto)
 const dslRaw = input.dsl || input;
