@@ -1,0 +1,7 @@
+- Cittadinanza: genitore richiedente cittadino italiano o dell'Unione Europea; cittadini extracomunitari con permesso di soggiorno valido.
+- Residenza: residenza in Italia al momento della domanda.
+- Convivenza: il minore deve essere residente e convivente con il genitore richiedente.
+- Nascita/adozione/affidamento: il figlio deve essere nato, adottato o in affido preadottivo in Italia nell'anno di riferimento.
+- ISEE: presenza di una Dichiarazione Sostitutiva Unica (DSU) valida con indicatore ISEE minorenni in corso di validità (valore entro 40.000).
+- Non cumulabilità: non deve essere già stato richiesto da altro genitore per lo stesso figlio.
+- La richiesta del bonus deve avvenire entro 120 giorni dal parto

@@ -1,0 +1,382 @@
+{
+  "timestamp": "2025-10-16T06:51:22.199Z",
+  "dsl": "Assegno Unico e Universale",
+  "totalTests": 16,
+  "passed": 16,
+  "failed": 0,
+  "results": [
+    {
+      "testName": "Test 1: IT/UE + Figli minorenni + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": true,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "sì",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 2: IT/UE + Figli 18-21 + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": true,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 3: IT/UE + Figli disabili + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": true,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "no",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 4: IT/UE + Figli minorenni + RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "Non è necessario presentare domanda: se percepisce il Reddito di Cittadinanza, l'Assegno Unico viene corrisposto d'ufficio dall'INPS. Non deve fare nulla.",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": true,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": true
+      },
+      "inputs": [
+        "sì",
+        "sì",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 5: IT/UE + No figli + No RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "Requisito figli a carico: è necessario avere almeno un figlio minorenne (età < 18 anni), un figlio tra 18-21 anni nelle condizioni previste (scuola/università, tirocinio/lavoro con reddito ≤8.000€, iscrizione Centri per l'Impiego, servizio civile), oppure un figlio con disabilità (senza limiti di età).",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": false,
+        "percepisce_rdc": null
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "no",
+        "no",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 6: IT/UE + No figli + RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "Requisito figli a carico: è necessario avere almeno un figlio minorenne (età < 18 anni), un figlio tra 18-21 anni nelle condizioni previste (scuola/università, tirocinio/lavoro con reddito ≤8.000€, iscrizione Centri per l'Impiego, servizio civile), oppure un figlio con disabilità (senza limiti di età).",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": false,
+        "percepisce_rdc": null
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "no",
+        "no",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 7: Extracom + Permesso + Figli minorenni + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": true,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 8: Extracom + Permesso + Figli 18-21 + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": true,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "no",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 9: Extracom + Permesso + Figli disabili + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 6,
+      "expectedQuestions": 6,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": true,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "no",
+        "no",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 10: Extracom + Permesso + Figli minorenni + RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "Non è necessario presentare domanda: se percepisce il Reddito di Cittadinanza, l'Assegno Unico viene corrisposto d'ufficio dall'INPS. Non deve fare nulla.",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": true,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": true
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "sì",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 11: Extracom + Permesso + No figli + No RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "Requisito figli a carico: è necessario avere almeno un figlio minorenne (età < 18 anni), un figlio tra 18-21 anni nelle condizioni previste (scuola/università, tirocinio/lavoro con reddito ≤8.000€, iscrizione Centri per l'Impiego, servizio civile), oppure un figlio con disabilità (senza limiti di età).",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": false,
+        "percepisce_rdc": null
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "no",
+        "no",
+        "no",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 12: Extracom + No Permesso (blocco cittadinanza)",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 2,
+      "expectedQuestions": 2,
+      "reason": "Requisito cittadinanza: il richiedente deve essere cittadino italiano/UE oppure cittadino extracomunitario con permesso di soggiorno valido (lavoro, protezione internazionale o ricongiungimento familiare).",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": false,
+        "ha_figli_minorenni": null,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": null
+      },
+      "inputs": [
+        "no",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 13: IT/UE + Più tipologie figli (minorenni) + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": true,
+        "ha_figli_18_21_condizioni": null,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "sì",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 14: Extracom + Permesso + Più tipologie figli (18-21) + No RdC",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "cittadino_italiano_ue": false,
+        "extracom_permesso_valido": true,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": true,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": false
+      },
+      "inputs": [
+        "no",
+        "sì",
+        "no",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 15: IT/UE + Solo figli 18-21 + RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "Non è necessario presentare domanda: se percepisce il Reddito di Cittadinanza, l'Assegno Unico viene corrisposto d'ufficio dall'INPS. Non deve fare nulla.",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": true,
+        "ha_figli_disabili": null,
+        "percepisce_rdc": true
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "sì",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 16: IT/UE + Solo figli disabili + RdC",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "Non è necessario presentare domanda: se percepisce il Reddito di Cittadinanza, l'Assegno Unico viene corrisposto d'ufficio dall'INPS. Non deve fare nulla.",
+      "variables": {
+        "cittadino_italiano_ue": true,
+        "extracom_permesso_valido": null,
+        "ha_figli_minorenni": false,
+        "ha_figli_18_21_condizioni": false,
+        "ha_figli_disabili": true,
+        "percepisce_rdc": true
+      },
+      "inputs": [
+        "sì",
+        "no",
+        "no",
+        "sì",
+        "sì"
+      ]
+    }
+  ]
+}

@@ -87,7 +87,7 @@ Requisiti: Il Bonus Nido è per cittadini italiani...
 📊 Risultato finale: ✅ VALIDA
 
 💾 DSL creata salvata in: dsl-created-1737420123456.json
-💾 Report completo salvato in: creation-test-result-1737420123456.json
+💾 Report completo salvato in: creation-test-report-1737420123456.md
 
 ============================================================
 RIEPILOGO ERRORI PER TENTATIVO
@@ -107,31 +107,16 @@ Tentativi totali: 2
 
 ### File generati
 
-**1. `creation-test-result-{timestamp}.json`** - Report completo
-```json
-{
-  "testName": "miei-requisiti",
-  "requisiti": "Il Bonus Nido è per...",
-  "tentativi": [
-    {
-      "numero": 1,
-      "tipo": "generazione",
-      "valida": false,
-      "errori": ["Reason 5: variabile \"X\" non dichiarata"],
-      "dsl": { "title": "...", ... }
-    },
-    {
-      "numero": 2,
-      "tipo": "correzione",
-      "valida": true,
-      "errori": [],
-      "dsl": { "title": "...", ... }
-    }
-  ],
-  "dslFinale": { "title": "...", ... },
-  "valida": true
-}
-```
+**1. `creation-test-report-{timestamp}.md`** - Report completo in Markdown
+
+Contiene:
+- Riepilogo test (data, modello, risultato, tentativi)
+- Requisiti forniti
+- Tabella riepilogo tentativi
+- Dettaglio errori per ogni tentativo
+- DSL finale generata (in formato JSON)
+- Analisi della DSL (punti di forza, copertura requisiti)
+- Conclusioni
 
 **2. `dsl-created-{timestamp}.json`** - DSL creata (solo se valida)
 ```json
@@ -156,7 +141,7 @@ dsl-creation-test/
 ├── examples/
 │   ├── bonus-nido-requisiti.txt # Esempio requisiti
 │   └── test-cases.json          # Vecchi test cases (riferimento)
-├── creation-test-result-*.json  # Report generati (git-ignored)
+├── creation-test-report-*.md    # Report markdown (git-ignored)
 └── dsl-created-*.json           # DSL create (git-ignored)
 ```
 

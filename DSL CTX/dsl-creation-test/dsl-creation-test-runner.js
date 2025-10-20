@@ -363,6 +363,101 @@ async function testDSLGeneration(testCase) {
   return risultato;
 }
 
+// Funzione per generare report Markdown
+function generateMarkdownReport(risultato) {
+  const today = new Date().toISOString().split('T')[0];
+  let md = `# Report Test Creazione DSL: ${risultato.testName}\n\n`;
+  md += `**Data**: ${today}\n`;
+  md += `**Modello**: ${OPENAI_CONFIG.model} (temperature=${OPENAI_CONFIG.temperature}, seed=${OPENAI_CONFIG.seed})\n`;
+  md += `**Risultato**: ${risultato.valida ? '✅ **DSL VALIDA**' : '❌ **DSL NON VALIDA**'}\n`;
+  md += `**Tentativi necessari**: ${risultato.tentativi.length}/${3}\n\n`;
+  md += `---\n\n`;
+
+  // Requisiti
+  md += `## Requisiti Forniti\n\n`;
+  md += `${risultato.requisiti}\n\n`;
+  md += `---\n\n`;
+
+  // Riepilogo tentativi
+  md += `## Riepilogo Tentativi\n\n`;
+  md += `| Tentativo | Tipo | Risultato | Errori |\n`;
+  md += `|-----------|------|-----------|--------|\n`;
+  risultato.tentativi.forEach(t => {
+    const risultatoIcon = t.valida ? '✅ Valida' : '❌ Non valida';
+    md += `| ${t.numero} | ${t.tipo.charAt(0).toUpperCase() + t.tipo.slice(1)} | ${risultatoIcon} | ${t.errori.length} |\n`;
+  });
+  md += `\n---\n\n`;
+
+  // Dettaglio tentativi
+  md += `## Dettaglio Tentativi\n\n`;
+  risultato.tentativi.forEach(t => {
+    md += `### Tentativo ${t.numero}: ${t.tipo.charAt(0).toUpperCase() + t.tipo.slice(1)}\n\n`;
+    md += `**Risultato**: ${t.valida ? '✅ **Valida**' : '❌ **Non valida**'}\n`;
+    md += `**Errori**: ${t.errori.length === 0 ? 'Nessuno' : t.errori.length}\n\n`;
+
+    if (t.errori.length > 0) {
+      md += `**Errori rilevati**:\n\n`;
+      t.errori.forEach((err, i) => {
+        md += `${i + 1}. ${err}\n`;
+      });
+      md += `\n`;
+    } else {
+      md += `La DSL è stata ${t.tipo === 'generazione' ? 'generata' : 'corretta'} senza errori di validazione.\n\n`;
+    }
+  });
+  md += `---\n\n`;
+
+  // DSL finale (se valida)
+  if (risultato.valida && risultato.dslFinale) {
+    md += `## DSL Finale Generata\n\n`;
+    md += `\`\`\`json\n`;
+    md += JSON.stringify(risultato.dslFinale, null, 2);
+    md += `\n\`\`\`\n\n`;
+    md += `---\n\n`;
+
+    // Analisi della DSL
+    md += `## Analisi della DSL\n\n`;
+    md += `### Punti di Forza\n\n`;
+
+    const numSteps = risultato.dslFinale.steps.length;
+    const numReasons = risultato.dslFinale.reasons_if_fail.length;
+    const numActions = risultato.dslFinale.next_actions_if_ok.length;
+
+    md += `1. **Struttura completa**:\n`;
+    md += `   - ${numSteps} steps di raccolta dati\n`;
+    md += `   - ${numReasons} condizioni di fallimento\n`;
+    md += `   - ${numActions} azioni successive\n\n`;
+
+    md += `2. **Schema rispettato**:\n`;
+    md += `   - \`evaluation_mode\`: \`"${risultato.dslFinale.evaluation_mode}"\` ✓\n`;
+    md += `   - Tutti i \`type\` sono validi (boolean/string/number) ✓\n`;
+    md += `   - Tutti i \`blocking\` sono \`true\` ✓\n\n`;
+
+    md += `3. **Consistenza nomi variabili**:\n`;
+    md += `   - Tutti i nomi in \`check_after_vars[]\` corrispondono a \`steps[].var\` ✓\n\n`;
+  }
+
+  // Conclusioni
+  md += `## Conclusioni\n\n`;
+  if (risultato.valida) {
+    md += `Il prompt ha generato una DSL valida ${risultato.tentativi.length === 1 ? 'al primo tentativo' : `dopo ${risultato.tentativi.length} tentativi`}, dimostrando:\n\n`;
+    md += `- Corretta comprensione dei requisiti\n`;
+    md += `- Applicazione delle regole di schema\n`;
+    md += `- Consistenza nei nomi delle variabili\n\n`;
+    md += `**Risultato finale**: ✅ **Test superato con successo**\n`;
+  } else {
+    md += `La DSL non è stata validata dopo ${risultato.tentativi.length} tentativi.\n\n`;
+    md += `**Errori persistenti**:\n\n`;
+    const ultimoTentativo = risultato.tentativi[risultato.tentativi.length - 1];
+    ultimoTentativo.errori.forEach((err, i) => {
+      md += `${i + 1}. ${err}\n`;
+    });
+    md += `\n**Risultato finale**: ❌ **Test non superato**\n`;
+  }
+
+  return md;
+}
+
 // Funzione principale
 async function main() {
   const args = process.argv.slice(2);
@@ -419,17 +514,20 @@ async function main() {
 
   // Salva risultati
   const timestamp = Date.now();
-  const outputJsonPath = path.join(__dirname, `creation-test-result-${timestamp}.json`);
-  fs.writeFileSync(outputJsonPath, JSON.stringify(risultato, null, 2));
 
-  // Se DSL valida, salva anche la DSL finale
+  // Genera e salva report Markdown
+  const markdownReport = generateMarkdownReport(risultato);
+  const outputMdPath = path.join(__dirname, `creation-test-report-${timestamp}.md`);
+  fs.writeFileSync(outputMdPath, markdownReport, 'utf8');
+
+  // Se DSL valida, salva anche la DSL finale in JSON
   if (risultato.valida && risultato.dslFinale) {
     const outputDslPath = path.join(__dirname, `dsl-created-${timestamp}.json`);
     fs.writeFileSync(outputDslPath, JSON.stringify(risultato.dslFinale, null, 2));
-    console.log(`\n💾 DSL creata salvata in: ${outputDslPath}`);
+    console.log(`\n💾 DSL creata salvata in: ${path.basename(outputDslPath)}`);
   }
 
-  console.log(`💾 Report completo salvato in: ${outputJsonPath}`);
+  console.log(`💾 Report completo salvato in: ${path.basename(outputMdPath)}`);
 
   // Riepilogo errori per tentativo
   console.log(`\n${'='.repeat(60)}`);

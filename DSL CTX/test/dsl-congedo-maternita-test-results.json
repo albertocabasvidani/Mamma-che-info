@@ -1,0 +1,536 @@
+{
+  "timestamp": "2025-10-16T08:03:13.013Z",
+  "dsl": "Congedo di Maternità Obbligatoria",
+  "totalTests": 22,
+  "passed": 22,
+  "failed": 0,
+  "results": [
+    {
+      "testName": "Test 1: Dipendente Privato + Gravidanza + Fase Prima Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "dipendente_privato",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": "prima_parto",
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_privato",
+        "sì",
+        "prima_parto"
+      ]
+    },
+    {
+      "testName": "Test 2: Dipendente Privato + Gravidanza + Fase Dopo Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "dipendente_privato",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": "dopo_parto",
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_privato",
+        "sì",
+        "dopo_parto"
+      ]
+    },
+    {
+      "testName": "Test 3: Dipendente Privato + Gravidanza + Maternità Anticipata",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "dipendente_privato",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": "maternita_anticipata",
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_privato",
+        "sì",
+        "maternita_anticipata"
+      ]
+    },
+    {
+      "testName": "Test 4: Dipendente Privato + No Gravidanza",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 2,
+      "expectedQuestions": 2,
+      "reason": "Il congedo di maternità obbligatoria è riservato a persone in stato di gravidanza. Se hai già partorito e non hai ancora presentato domanda, puoi comunque procedere con la domanda per la parte post-parto.",
+      "variables": {
+        "profilo_lavoratore": "dipendente_privato",
+        "in_gravidanza": false,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_privato",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 5: Gestione Separata + Gravidanza + Contributi OK",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "gestione_separata",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": true,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "gestione_separata",
+        "sì",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 6: Gestione Separata + Gravidanza + Contributi NO",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "Requisito contributivo non soddisfatto: per i lavoratori iscritti alla Gestione Separata è necessario aver versato almeno 1 contributo mensile con aliquota maggiorata nei 12 mesi precedenti l'inizio del periodo di maternità. Verifica con il tuo commercialista o consulta la tua posizione contributiva sul portale INPS.",
+      "variables": {
+        "profilo_lavoratore": "gestione_separata",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": false,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "gestione_separata",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 7: Gestione Separata + No Gravidanza",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 2,
+      "expectedQuestions": 2,
+      "reason": "Il congedo di maternità obbligatoria è riservato a persone in stato di gravidanza. Se hai già partorito e non hai ancora presentato domanda, puoi comunque procedere con la domanda per la parte post-parto.",
+      "variables": {
+        "profilo_lavoratore": "gestione_separata",
+        "in_gravidanza": false,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "gestione_separata",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 8: Autonomo + Artigiano + Contributi OK + Dopo Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "artigiano",
+        "contributi_autonomo_regolari": true,
+        "fase_gravidanza_autonomo": "dopo_parto",
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "artigiano",
+        "sì",
+        "dopo_parto"
+      ]
+    },
+    {
+      "testName": "Test 9: Autonomo + Commerciante + Contributi OK + Prima Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "commerciante",
+        "contributi_autonomo_regolari": true,
+        "fase_gravidanza_autonomo": "prima_parto",
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "commerciante",
+        "sì",
+        "prima_parto"
+      ]
+    },
+    {
+      "testName": "Test 10: Autonomo + Coltivatore Diretto + Contributi OK + Dopo Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "coltivatore_diretto",
+        "contributi_autonomo_regolari": true,
+        "fase_gravidanza_autonomo": "dopo_parto",
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "coltivatore_diretto",
+        "sì",
+        "dopo_parto"
+      ]
+    },
+    {
+      "testName": "Test 11: Autonomo + Categoria Altra",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "Categoria non ammessa: il congedo di maternità per lavoratori autonomi è riservato a: artigiani, commercianti, coltivatori diretti, coloni/mezzadri, imprenditori agricoli professionali, pescatori autonomi piccola pesca. Se appartieni ad altra categoria autonoma, verifica con INPS le tue opzioni.",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "altra_categoria",
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "altra_categoria"
+      ]
+    },
+    {
+      "testName": "Test 12: Autonomo + Artigiano + Contributi NO",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 4,
+      "expectedQuestions": 4,
+      "reason": "Requisito contributivo essenziale non soddisfatto: per i lavoratori autonomi è indispensabile la regolarità del versamento dei contributi per i mesi del periodo indennizzabile. Verifica la tua posizione contributiva e regolarizza eventuali arretrati prima di presentare domanda.",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "artigiano",
+        "contributi_autonomo_regolari": false,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "artigiano",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 13: Autonomo + Imprenditore Agricolo + Contributi OK + Dopo Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "imprenditore_agricolo",
+        "contributi_autonomo_regolari": true,
+        "fase_gravidanza_autonomo": "dopo_parto",
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "imprenditore_agricolo",
+        "sì",
+        "dopo_parto"
+      ]
+    },
+    {
+      "testName": "Test 14: Autonomo + Pescatore + Contributi OK + Prima Parto",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 5,
+      "expectedQuestions": 5,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": "pescatore_autonomo",
+        "contributi_autonomo_regolari": true,
+        "fase_gravidanza_autonomo": "prima_parto",
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "sì",
+        "pescatore_autonomo",
+        "sì",
+        "prima_parto"
+      ]
+    },
+    {
+      "testName": "Test 15: Autonomo + No Gravidanza",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 2,
+      "expectedQuestions": 2,
+      "reason": "Il congedo di maternità obbligatoria è riservato a persone in stato di gravidanza. Se hai già partorito e non hai ancora presentato domanda, puoi comunque procedere con la domanda per la parte post-parto.",
+      "variables": {
+        "profilo_lavoratore": "autonomo",
+        "in_gravidanza": false,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "autonomo",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 16: NASPI + Gravidanza + In NASPI a 2 mesi DPP",
+      "status": "PASS",
+      "result": "ammissibile",
+      "expectedResult": "ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "N/A",
+      "variables": {
+        "profilo_lavoratore": "naspi",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": true
+      },
+      "inputs": [
+        "naspi",
+        "sì",
+        "sì"
+      ]
+    },
+    {
+      "testName": "Test 17: NASPI + Gravidanza + Non in NASPI a 2 mesi DPP",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 3,
+      "expectedQuestions": 3,
+      "reason": "Requisito NASPI non soddisfatto: per accedere al congedo di maternità come percettore di NASPI, è necessario essere in NASPI al momento corrispondente a 2 mesi dalla Data Parto Prevista (DPP). Se la tua NASPI terminerà prima di quel momento, verifica con INPS eventuali altre modalità di accesso.",
+      "variables": {
+        "profilo_lavoratore": "naspi",
+        "in_gravidanza": true,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": false
+      },
+      "inputs": [
+        "naspi",
+        "sì",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 18: NASPI + No Gravidanza",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 2,
+      "expectedQuestions": 2,
+      "reason": "Il congedo di maternità obbligatoria è riservato a persone in stato di gravidanza. Se hai già partorito e non hai ancora presentato domanda, puoi comunque procedere con la domanda per la parte post-parto.",
+      "variables": {
+        "profilo_lavoratore": "naspi",
+        "in_gravidanza": false,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "naspi",
+        "no"
+      ]
+    },
+    {
+      "testName": "Test 19: Dipendente Pubblico (blocco immediato)",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 1,
+      "expectedQuestions": 1,
+      "reason": "I dipendenti pubblici devono presentare domanda direttamente alla Pubblica Amministrazione di appartenenza. Il pagamento viene effettuato dal Ministero, non dall'INPS. Non è necessario rivolgersi al CAF o Patronato.",
+      "variables": {
+        "profilo_lavoratore": "dipendente_pubblico",
+        "in_gravidanza": null,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_pubblico"
+      ]
+    },
+    {
+      "testName": "Test 20: Dipendente Pubblico (verifica skip_if)",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 1,
+      "expectedQuestions": 1,
+      "reason": "I dipendenti pubblici devono presentare domanda direttamente alla Pubblica Amministrazione di appartenenza. Il pagamento viene effettuato dal Ministero, non dall'INPS. Non è necessario rivolgersi al CAF o Patronato.",
+      "variables": {
+        "profilo_lavoratore": "dipendente_pubblico",
+        "in_gravidanza": null,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "dipendente_pubblico"
+      ]
+    },
+    {
+      "testName": "Test 21: Altro (blocco immediato)",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 1,
+      "expectedQuestions": 1,
+      "reason": "La tipologia di lavoratore indicata non è ammessa al congedo di maternità obbligatoria gestito da INPS. Verifica con il tuo datore di lavoro o consulente le modalità specifiche per la tua categoria.",
+      "variables": {
+        "profilo_lavoratore": "altro",
+        "in_gravidanza": null,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "altro"
+      ]
+    },
+    {
+      "testName": "Test 22: Altro (verifica skip_if)",
+      "status": "PASS",
+      "result": "non_ammissibile",
+      "expectedResult": "non_ammissibile",
+      "questionsAsked": 1,
+      "expectedQuestions": 1,
+      "reason": "La tipologia di lavoratore indicata non è ammessa al congedo di maternità obbligatoria gestito da INPS. Verifica con il tuo datore di lavoro o consulente le modalità specifiche per la tua categoria.",
+      "variables": {
+        "profilo_lavoratore": "altro",
+        "in_gravidanza": null,
+        "fase_gravidanza_dipendente": null,
+        "contributi_gestione_separata": null,
+        "categoria_autonomo": null,
+        "contributi_autonomo_regolari": null,
+        "fase_gravidanza_autonomo": null,
+        "in_naspi_2_mesi_dpp": null
+      },
+      "inputs": [
+        "altro"
+      ]
+    }
+  ]
+}

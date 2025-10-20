@@ -1,0 +1,143 @@
+{
+  "title": "Bonus nuovi nati",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Il genitore richiedente è cittadino italiano o dell'Unione Europea? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "extracom_permesso",
+      "ask": "Il genitore richiedente è cittadino extracomunitario con permesso di soggiorno valido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "cittadino_italiano_ue === true"
+    },
+    {
+      "var": "residenza_genitore",
+      "ask": "Il genitore richiedente è residente in Italia al momento della domanda? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "minore_residente",
+      "ask": "Il minore è residente in Italia? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "minore_convivente",
+      "ask": "Il minore convive con il genitore richiedente? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "evento_tipo",
+      "ask": "Indica il tipo di evento (scrivi: nascita, adozione o affidamento):",
+      "type": "string"
+    },
+    {
+      "var": "evento_in_italia",
+      "ask": "L'evento è avvenuto in Italia? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "evento_anno_corrente",
+      "ask": "L'evento è avvenuto nell'anno di riferimento della richiesta? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "dsu_valida",
+      "ask": "Hai una DSU (Dichiarazione Sostitutiva Unica) valida con indicatore ISEE minorenni in corso di validità? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "isee_minorenni",
+      "ask": "Qual è il valore ISEE minorenni in euro?",
+      "type": "number"
+    },
+    {
+      "var": "gia_richiesto_altro_genitore",
+      "ask": "Per lo stesso figlio è già stata presentata richiesta dall'altro genitore? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "giorni_dal_parto",
+      "ask": "Quanti giorni sono trascorsi dal parto?",
+      "type": "number",
+      "skip_if": "String(evento_tipo).toLowerCase().trim() !== 'nascita'"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "cittadino_italiano_ue === false && extracom_permesso === false",
+      "reason": "Requisito cittadinanza: il genitore richiedente deve essere cittadino italiano/UE oppure cittadino extracomunitario con permesso di soggiorno valido.",
+      "check_after_vars": ["cittadino_italiano_ue", "extracom_permesso"],
+      "blocking": true
+    },
+    {
+      "when": "residenza_genitore === false",
+      "reason": "Requisito residenza: il genitore richiedente deve essere residente in Italia al momento della domanda.",
+      "check_after_vars": ["residenza_genitore"],
+      "blocking": true
+    },
+    {
+      "when": "minore_residente === false",
+      "reason": "Requisito residenza minore: il minore deve essere residente in Italia.",
+      "check_after_vars": ["minore_residente"],
+      "blocking": true
+    },
+    {
+      "when": "minore_convivente === false",
+      "reason": "Requisito convivenza: il minore deve convivere con il genitore richiedente.",
+      "check_after_vars": ["minore_convivente"],
+      "blocking": true
+    },
+    {
+      "when": "!['nascita', 'adozione', 'affidamento'].includes(String(evento_tipo).toLowerCase().trim())",
+      "reason": "Requisito evento: l'evento deve essere nascita, adozione o affidamento preadottivo.",
+      "check_after_vars": ["evento_tipo"],
+      "blocking": true
+    },
+    {
+      "when": "evento_in_italia === false",
+      "reason": "Requisito luogo evento: la nascita, adozione o affidamento deve essere avvenuto in Italia.",
+      "check_after_vars": ["evento_in_italia"],
+      "blocking": true
+    },
+    {
+      "when": "evento_anno_corrente === false",
+      "reason": "Requisito temporale evento: l'evento deve essere avvenuto nell'anno di riferimento della richiesta.",
+      "check_after_vars": ["evento_anno_corrente"],
+      "blocking": true
+    },
+    {
+      "when": "dsu_valida === false",
+      "reason": "Requisito ISEE: è necessaria una DSU valida con indicatore ISEE minorenni in corso di validità.",
+      "check_after_vars": ["dsu_valida"],
+      "blocking": true
+    },
+    {
+      "when": "isee_minorenni > 40000",
+      "reason": "Requisito ISEE: il valore dell'indicatore ISEE minorenni deve essere entro 40.000 euro.",
+      "check_after_vars": ["isee_minorenni"],
+      "blocking": true
+    },
+    {
+      "when": "gia_richiesto_altro_genitore === true",
+      "reason": "Non cumulabilità: per lo stesso figlio non può essere già stata presentata richiesta dall'altro genitore.",
+      "check_after_vars": ["gia_richiesto_altro_genitore"],
+      "blocking": true
+    },
+    {
+      "when": "String(evento_tipo).toLowerCase().trim() === 'nascita' && giorni_dal_parto > 120",
+      "reason": "Termine presentazione: per le nascite, la richiesta del bonus deve essere presentata entro 120 giorni dal parto.",
+      "check_after_vars": ["evento_tipo", "giorni_dal_parto"],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": [
+    "Prenota un appuntamento con il CAF o patronato di zona",
+    "Prepara documento di identità valido",
+    "Prepara eventuale permesso di soggiorno (se extracomunitario)",
+    "Prepara DSU/attestazione ISEE minorenni",
+    "Prepara certificato di nascita, atto di adozione o affidamento preadottivo"
+  ]
+}
