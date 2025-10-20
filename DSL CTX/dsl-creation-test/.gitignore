@@ -1,7 +1,5 @@
-# Creation test results
-creation-test-report-*.md
-creation-test-result-*.json
-dsl-created-*.json
+# Test results (kept in git for reference)
+# tests/ folder is tracked
 
 # Node modules (se mai servissero)
 node_modules/

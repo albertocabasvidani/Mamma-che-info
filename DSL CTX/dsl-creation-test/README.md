@@ -86,8 +86,8 @@ Requisiti: Il Bonus Nido è per cittadini italiani...
 
 📊 Risultato finale: ✅ VALIDA
 
-💾 DSL creata salvata in: dsl-created-1737420123456.json
-💾 Report completo salvato in: creation-test-report-1737420123456.md
+💾 DSL creata salvata in: tests/bonus-nido/dsl-generated.json
+💾 Report completo salvato in: tests/bonus-nido/test-report.md
 
 ============================================================
 RIEPILOGO ERRORI PER TENTATIVO
@@ -107,9 +107,18 @@ Tentativi totali: 2
 
 ### File generati
 
-**1. `creation-test-report-{timestamp}.md`** - Report completo in Markdown
+I file di ogni test vengono salvati in una cartella dedicata: `tests/{nome-test}/`
 
-Contiene:
+**Struttura cartella test**:
+```
+tests/
+└── {nome-test}/
+    ├── requisiti.txt           # Requisiti forniti
+    ├── test-report.md          # Report completo in Markdown
+    └── dsl-generated.json      # DSL generata (solo se valida)
+```
+
+**Contenuto `test-report.md`**:
 - Riepilogo test (data, modello, risultato, tentativi)
 - Requisiti forniti
 - Tabella riepilogo tentativi
@@ -117,8 +126,6 @@ Contiene:
 - DSL finale generata (in formato JSON)
 - Analisi della DSL (punti di forza, copertura requisiti)
 - Conclusioni
-
-**2. `dsl-created-{timestamp}.json`** - DSL creata (solo se valida)
 ```json
 {
   "title": "Bonus Nido",
@@ -137,12 +144,16 @@ dsl-creation-test/
 ├── README.md                    # Questa guida
 ├── .env.example                 # Template configurazione
 ├── .env                         # Tua chiave API (git-ignored)
-├── .gitignore                   # Ignora risultati test
-├── examples/
-│   ├── bonus-nido-requisiti.txt # Esempio requisiti
-│   └── test-cases.json          # Vecchi test cases (riferimento)
-├── creation-test-report-*.md    # Report markdown (git-ignored)
-└── dsl-created-*.json           # DSL create (git-ignored)
+├── .gitignore
+└── tests/                       # Cartella risultati test
+    ├── bonus-nuovi-nati/        # Test Bonus Nuovi Nati
+    │   ├── requisiti.txt
+    │   ├── test-report.md
+    │   └── dsl-generated.json
+    └── assegno-unico/           # Test Assegno Unico
+        ├── requisiti.txt
+        ├── test-report.md
+        └── dsl-generated.json
 ```
 
 ## Configurazione OpenAI

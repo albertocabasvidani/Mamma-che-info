@@ -512,22 +512,28 @@ async function main() {
 
   const risultato = await testDSLGeneration(testCase);
 
-  // Salva risultati
-  const timestamp = Date.now();
+  // Salva risultati in cartella dedicata
+  const testFolderName = testCase.name.toLowerCase().replace(/\s+/g, '-');
+  const testFolderPath = path.join(__dirname, 'tests', testFolderName);
+
+  // Crea cartella test se non esiste
+  if (!fs.existsSync(testFolderPath)) {
+    fs.mkdirSync(testFolderPath, { recursive: true });
+  }
 
   // Genera e salva report Markdown
   const markdownReport = generateMarkdownReport(risultato);
-  const outputMdPath = path.join(__dirname, `creation-test-report-${timestamp}.md`);
+  const outputMdPath = path.join(testFolderPath, 'test-report.md');
   fs.writeFileSync(outputMdPath, markdownReport, 'utf8');
 
   // Se DSL valida, salva anche la DSL finale in JSON
   if (risultato.valida && risultato.dslFinale) {
-    const outputDslPath = path.join(__dirname, `dsl-created-${timestamp}.json`);
+    const outputDslPath = path.join(testFolderPath, 'dsl-generated.json');
     fs.writeFileSync(outputDslPath, JSON.stringify(risultato.dslFinale, null, 2));
-    console.log(`\n💾 DSL creata salvata in: ${path.basename(outputDslPath)}`);
+    console.log(`\n💾 DSL creata salvata in: tests/${testFolderName}/dsl-generated.json`);
   }
 
-  console.log(`💾 Report completo salvato in: ${path.basename(outputMdPath)}`);
+  console.log(`💾 Report completo salvato in: tests/${testFolderName}/test-report.md`);
 
   // Riepilogo errori per tentativo
   console.log(`\n${'='.repeat(60)}`);

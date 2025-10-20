@@ -1,4 +1,4 @@
-# Report Test Creazione DSL: Bonus Nuovi Nati
+# Report Test Creazione DSL: bonus-nuovi-nati-requisiti
 
 **Data**: 2025-10-20
 **Modello**: gpt-4o (temperature=0, seed=42)
@@ -34,7 +34,7 @@
 **Risultato**: ✅ **Valida**
 **Errori**: Nessuno
 
-La DSL è stata generata correttamente al primo tentativo senza alcun errore di validazione.
+La DSL è stata generata senza errori di validazione.
 
 ---
 
@@ -129,7 +129,7 @@ La DSL è stata generata correttamente al primo tentativo senza alcun errore di 
     },
     {
       "when": "isee_valido === false || isee_valore > 40000",
-      "reason": "È richiesta una DSU valida con indicatore ISEE minorenni in corso di validità e valore entro 40.000.",
+      "reason": "È necessaria una DSU valida con indicatore ISEE minorenni in corso di validità e valore entro 40.000.",
       "check_after_vars": [
         "isee_valido",
         "isee_valore"
@@ -168,52 +168,25 @@ La DSL è stata generata correttamente al primo tentativo senza alcun errore di 
 
 ### Punti di Forza
 
-1. **Gestione cittadinanza corretta**:
-   - Step 1 verifica cittadinanza italiana/UE
-   - Step 2 verifica extracomunitario con `skip_if` condizionale
-   - Reason 1 valida entrambe le condizioni con operatore `&&`
+1. **Struttura completa**:
+   - 9 steps di raccolta dati
+   - 7 condizioni di fallimento
+   - 4 azioni successive
 
-2. **Validazione ISEE strutturata**:
-   - Step 6 verifica presenza DSU valida
-   - Step 7 raccoglie valore numerico (con skip se non valida)
-   - Reason 5 valida sia presenza che soglia (≤ 40.000)
+2. **Schema rispettato**:
+   - `evaluation_mode`: `"incremental"` ✓
+   - Tutti i `type` sono validi (boolean/string/number) ✓
+   - Tutti i `blocking` sono `true` ✓
 
 3. **Consistenza nomi variabili**:
-   - Tutti i nomi in `check_after_vars[]` sono identici a `steps[].var`
-   - Esempio: `richiesta_entra_120_giorni` (nome composto non abbreviato)
-
-4. **Schema rispettato**:
-   - `evaluation_mode`: `"incremental"` ✓
-   - `type`: solo `"boolean"` e `"number"` ✓
-   - `blocking`: sempre `true` (boolean) ✓
-
-5. **Next actions ben strutturate**:
-   - Prima azione: appuntamento CAF/Patronato
-   - Documenti con prefisso condizionale: "Se extracomunitario: ..."
-
-### Copertura Requisiti
-
-| Requisito | Coperto | Step/Reason |
-|-----------|---------|-------------|
-| Cittadinanza IT/UE/Extracom | ✅ | Steps 1-2, Reason 1 |
-| Residenza Italia | ✅ | Step 3, Reason 2 |
-| Convivenza minore | ✅ | Step 4, Reason 3 |
-| Nascita/adozione/affido | ✅ | Step 5, Reason 4 |
-| ISEE valido ≤ 40.000 | ✅ | Steps 6-7, Reason 5 |
-| Non cumulabilità | ✅ | Step 8, Reason 6 |
-| Richiesta entro 120gg | ✅ | Step 9, Reason 7 |
-
-**Copertura totale**: 7/7 requisiti ✓
-
----
+   - Tutti i nomi in `check_after_vars[]` corrispondono a `steps[].var` ✓
 
 ## Conclusioni
 
-Il prompt ottimizzato con GPT-4o (T=0, seed=42) ha generato una DSL perfettamente valida al primo tentativo, dimostrando:
+Il prompt ha generato una DSL valida al primo tentativo, dimostrando:
 
-- Eccellente comprensione dei requisiti
-- Corretta applicazione delle regole di schema
+- Corretta comprensione dei requisiti
+- Applicazione delle regole di schema
 - Consistenza nei nomi delle variabili
-- Gestione appropriata di condizioni complesse (cittadinanza, ISEE)
 
 **Risultato finale**: ✅ **Test superato con successo**
