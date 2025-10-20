@@ -10,7 +10,7 @@ Workflow conversazionale che:
 4. Salva la DSL validata su Notion
 
 ### Architettura
-**Workflow unico** con AI Agent che orchestra 3 tool nativi n8n.
+**Workflow con AI Agent + Feedback Loop** per generazione e validazione iterativa DSL.
 
 ```
 ┌─────────────────┐
@@ -29,19 +29,34 @@ Workflow conversazionale che:
          │
          │  Tool Connections (ai_tool):
          │
-         ├───────────────►┌──────────────────┐
-         │                │ Tool: OpenAI     │
-         │                │ (generate_dsl)   │
-         │                └──────────────────┘
-         │
-         ├───────────────►┌──────────────────┐
-         │                │ Tool: Code       │
-         │                │ (validate_dsl)   │
-         │                └──────────────────┘
+         ├───────────────►┌──────────────────────────────┐
+         │                │ Tool: "Crea DSL"             │
+         │                │                              │
+         │                │  ┌──────────────────┐       │
+         │                │  │ Code: Prepare    │       │
+         │                │  │ Prompt           │       │
+         │                │  └────────┬─────────┘       │
+         │                │           │                  │
+         │                │           ▼                  │
+         │                │  ┌──────────────────┐       │
+         │                │  │ Message a Model  │       │
+         │                │  │ (gpt-4o, T=0)    │       │
+         │                │  └────────┬─────────┘       │
+         │                │           │                  │
+         │                │           ▼                  │
+         │                │  ┌──────────────────┐       │
+         │                │  │ Code: Validate   │◄──┐   │
+         │                │  │ DSL Schema       │   │   │
+         │                │  └────────┬─────────┘   │   │
+         │                │           │              │   │
+         │                │    errori?│              │   │
+         │                │           └──────────────┘   │
+         │                │        (max 3 loop)          │
+         │                └──────────────────────────────┘
          │
          └───────────────►┌──────────────────┐
-                          │ Tool: Notion     │
-                          │ (save_to_notion) │
+                          │ Tool: "Salva in  │
+                          │ Notion"          │
                           └──────────────────┘
 ```
 
@@ -129,129 +144,243 @@ Workflow conversazionale che:
 - `main[0]` ← Chat Trigger
 - `ai_memory[0]` ← Window Buffer Memory
 - `ai_languageModel[0]` ← OpenAI Chat Model
-- `ai_tool[0]` ← Tool: OpenAI (generate_dsl)
-- `ai_tool[1]` ← Tool: Code (validate_dsl)
-- `ai_tool[2]` ← Tool: Notion (save_to_notion)
+- `ai_tool[0]` ← Tool: "Crea DSL"
+- `ai_tool[1]` ← Tool: "Salva in Notion"
 
 ---
 
-### Nodo 5: Tool - OpenAI (Generate DSL)
-**Tipo:** `@n8n/n8n-nodes-langchain.lmChatOpenAi`
+### Nodo 5: Tool - "Crea DSL" (Workflow Completo)
+**Descrizione:** Genera e valida una DSL JSON con feedback loop automatico (max 3 tentativi)
+
+**Input richiesti:**
+```json
+{
+  "mode": "generazione" | "correzione",
+  "requisiti_utente": "string (testo completo requisiti)",
+  "dsl_da_correggere": "object (solo se mode=correzione)",
+  "errori_validazione": "array (solo se mode=correzione)",
+  "tentativo_numero": "number (opzionale, 1-3)"
+}
+```
+
+#### Nodo 5.1: Code - "Prepare Prompt"
+
+**Codice completo:**
+```javascript
+const mode = $json.mode || "generazione";
+
+const basePrompt = `Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutturata.
+
+## SCHEMA DSL OBBLIGATORIO
+
+\`\`\`json
+{
+  "title": "<string>",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "<string>",
+      "ask": "<string>",
+      "type": "<'boolean' | 'string' | 'number'>",
+      "skip_if": "<string | opzionale>"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "<string>",
+      "reason": "<string>",
+      "check_after_vars": ["<string>"],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": ["<string>"]
+}
+\`\`\`
+
+## REGOLE CRITICHE
+
+**Consistenza nomi variabili:**
+- I nomi in check_after_vars[] DEVONO essere IDENTICI a quelli in steps[].var
+- I nomi in when DEVONO essere IDENTICI a quelli in steps[].var
+- I nomi in skip_if DEVONO essere IDENTICI a quelli in steps[].var
+- NON abbreviare, NON parafrasare
+
+**Tipi corretti:**
+- evaluation_mode: sempre "incremental"
+- type: solo "boolean", "string" o "number"
+- blocking: sempre true (boolean, non stringa)
+
+**Steps:**
+- Ogni step raccoglie UNA informazione
+- Per cittadinanza: due step separati (italiano/UE, poi extracomunitario)
+- Domande chiare con formato risposta (es. "sì/no")
+
+**Reasons:**
+- when: condizione JavaScript del fallimento
+- check_after_vars: TUTTE le variabili usate in when
+- Per "almeno uno": var1 === false && var2 === false
+
+**Next actions:**
+- Prima azione: "Prenota appuntamento con CAF o Patronato di zona"
+- Documenti con prefissi: "Se cittadino extracomunitario:", "Se hai figli disabili:", ecc.
+
+## ESEMPIO COMPLETO
+
+\`\`\`json
+{
+  "title": "Bonus nuovi nati",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Il genitore richiedente è cittadino italiano o dell'Unione Europea? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "extracom_permesso",
+      "ask": "Il genitore richiedente è cittadino extracomunitario con permesso di soggiorno valido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "cittadino_italiano_ue === true"
+    },
+    {
+      "var": "figli_in_tutela_o_affido",
+      "ask": "Hai figli in affido o sotto tutela? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "documentazione_tutela",
+      "ask": "Hai la documentazione comprovante? (sì/no)",
+      "type": "boolean",
+      "skip_if": "figli_in_tutela_o_affido === false"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "cittadino_italiano_ue === false && extracom_permesso === false",
+      "reason": "Requisito cittadinanza: il genitore richiedente deve essere cittadino italiano/UE oppure extracomunitario con permesso valido.",
+      "check_after_vars": ["cittadino_italiano_ue", "extracom_permesso"],
+      "blocking": true
+    },
+    {
+      "when": "figli_in_tutela_o_affido === true && documentazione_tutela === false",
+      "reason": "Per figli in affido o tutela è richiesta la documentazione comprovante.",
+      "check_after_vars": ["figli_in_tutela_o_affido", "documentazione_tutela"],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": [
+    "Prenota appuntamento con CAF o Patronato di zona",
+    "Prepara documento di identità valido",
+    "Se extracomunitario: prepara permesso di soggiorno valido"
+  ]
+}
+\`\`\`
+
+Nota: "figli_in_tutela_o_affido" è identico in var, skip_if, when e check_after_vars.`;
+
+let userMessage = '';
+
+if (mode === "correzione") {
+  userMessage = `## MODALITÀ: CORREZIONE MIRATA
+
+REQUISITI ORIGINALI (per contesto):
+${$json.requisiti_utente}
+
+DSL DA CORREGGERE:
+\`\`\`json
+${JSON.stringify($json.dsl_da_correggere, null, 2)}
+\`\`\`
+
+ERRORI DI VALIDAZIONE:
+${$json.errori_validazione.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+
+ISTRUZIONI:
+Correggi SOLO gli errori elencati sopra.
+Mantieni tutto il resto della DSL identico.
+Verifica che i nomi delle variabili siano consistenti.
+
+${$json.tentativo_numero ? `(Tentativo ${$json.tentativo_numero}/3)` : ''}
+
+Genera SOLO il JSON valido, senza commenti o markdown code blocks.
+Il JSON deve iniziare con { e terminare con }.`;
+} else {
+  userMessage = `## MODALITÀ: GENERAZIONE NUOVA DSL
+
+REQUISITI DELLA PRATICA BUROCRATICA:
+${$json.requisiti_utente}
+
+ISTRUZIONI:
+Genera una DSL completa che modelli questi requisiti.
+Segui rigorosamente lo schema e le regole indicate sopra.
+
+Genera SOLO il JSON valido, senza commenti o markdown code blocks.
+Il JSON deve iniziare con { e terminare con }.`;
+}
+
+return {
+  json: {
+    systemPrompt: basePrompt,
+    userMessage: userMessage
+  }
+};
+```
+
+#### Nodo 5.2: Message a Model (OpenAI)
+
+**Tipo:** `@n8n/n8n-nodes-langchain.lmChatOpenAi` o nodo OpenAI standard
 **Versione:** 1
 
-**Configurazione come Tool:**
-- Nella configurazione del nodo, abilitare "Use as Tool"
-- Nome tool: `generate_dsl`
-- Description: `Genera una DSL JSON da requisiti testuali per una pratica burocratica italiana. Input: testo requisiti in linguaggio naturale. Output: DSL JSON completa e strutturata secondo le specifiche.`
-
-**Parametri:**
+**Configurazione:**
 ```json
 {
   "model": "gpt-4o",
   "options": {
-    "temperature": 0.1,
-    "maxTokens": 3000,
+    "temperature": 0,
+    "seed": 42,
+    "maxTokens": 4000,
     "responseFormat": "json_object"
   }
 }
 ```
 
-**System Message:**
-```
-Sei un esperto nella conversione di requisiti burocratici italiani in una DSL (Domain-Specific Language) strutturata.
+**System Message:** `{{ $json.systemPrompt }}`
+**User Message:** `{{ $json.userMessage }}`
 
-Il tuo compito è generare un JSON valido che modelli una pratica burocratica secondo questo schema:
-
-**Struttura DSL:**
-{
-  "title": "Nome della pratica",
-  "evaluation_mode": "incremental",
-  "steps": [ ... ],
-  "reasons_if_fail": [ ... ],
-  "next_actions_if_ok": [ ... ]
-}
-
-**Regole per gli steps:**
-- Ogni step raccoglie UNA informazione
-- Usa type: "boolean" per sì/no, type: "string" per scelte multiple, type: "number" per valori numerici
-- Aggiungi skip_if quando uno step dipende da condizioni precedenti
-- Per cittadinanza extracomunitaria, crea sempre due step separati: uno per italiani/UE, uno per extracomunitari
-- Le domande devono essere chiare e complete, includendo tutte le opzioni quando rilevante
-
-**Regole per reasons_if_fail:**
-- Ogni reason verifica UN requisito
-- when contiene la condizione JavaScript che determina il fallimento
-- check_after_vars deve contenere TUTTE le variabili usate nel when
-- blocking: true sempre
-- Per requisiti "almeno uno di questi", usa condizioni AND (es: var1 === false && var2 === false)
-- La reason deve spiegare chiaramente perché il requisito non è soddisfatto e cosa manca
-
-**Regole per next_actions_if_ok:**
-- Inizia sempre con "Prenota appuntamento con CAF o Patronato di zona"
-- Elenca documenti necessari (identità, tessera sanitaria, ecc.)
-- Specifica documenti per casi particolari con prefissi come "Se cittadino extracomunitario:", "Se hai figli disabili:", ecc.
-
-**Esempio di mappatura:**
-Input: "ISEE: presenza di una DSU valida con ISEE minorenni ≤ 40.000"
-Output:
-{
-  "var": "dsu_valida",
-  "ask": "Hai una DSU (Dichiarazione Sostitutiva Unica) valida con indicatore ISEE minorenni in corso di validità? (sì/no)",
-  "type": "boolean"
-},
-{
-  "var": "isee_minorenni",
-  "ask": "Qual è il valore ISEE minorenni in euro?",
-  "type": "number"
-}
-
-E nella sezione reasons_if_fail:
-{
-  "when": "dsu_valida === false",
-  "reason": "Requisito ISEE: è necessaria una DSU valida con indicatore ISEE minorenni in corso di validità.",
-  "check_after_vars": ["dsu_valida"],
-  "blocking": true
-},
-{
-  "when": "isee_minorenni > 40000",
-  "reason": "Requisito ISEE: il valore dell'indicatore ISEE minorenni deve essere entro 40.000 euro.",
-  "check_after_vars": ["isee_minorenni"],
-  "blocking": true
-}
-
-Genera SOLO il JSON valido, senza commenti o spiegazioni.
-```
+**Note configurazione:**
+- **Model:** gpt-4o (NON mini) per massima affidabilità
+- **Temperature:** 0 per output deterministico
+- **Seed:** 42 (o qualsiasi numero fisso) per consistenza tra chiamate
+- **responseFormat:** json_object per garantire JSON valido
 
 **Credentials:** OpenAI API (già configurate)
 
-**Position:** [1220, 420]
+#### Nodo 5.3: Code - "Validate DSL Schema"
 
----
+**Codice:** Vedi `dsl-schema-validator.js` nella Sezione 4
 
-### Nodo 6: Tool - Code (Validate DSL)
-**Tipo:** `@n8n/n8n-nodes-langchain.toolCode`
-**Versione:** 1.1
-
-**Parametri:**
+**Output:**
 ```json
 {
-  "name": "validate_dsl",
-  "description": "Valida una DSL JSON eseguendo test automatici. Input: DSL JSON object. Output: {valid: boolean, diagnostics: {...}, testResults: [...], summary: {totalTests, passed, failed}}",
-  "workflowCode": "=<VEDI SEZIONE 4>"
+  "valid": true|false,
+  "errors": ["errore 1", "errore 2"],
+  "message": "DSL valida" | "Trovati N errori di validazione"
 }
 ```
 
-**Position:** [1420, 420]
+**Logica Feedback Loop:**
+- Se `valid === true` → ritorna DSL al chiamante
+- Se `valid === false` && tentativi < 3 → torna a Nodo 5.1 con mode="correzione"
+- Se `valid === false` && tentativi >= 3 → ritorna errore
 
 ---
 
-### Nodo 7: Tool - Notion (Save to Notion)
+### Nodo 6: Tool - "Salva in Notion"
 **Tipo:** `@n8n/n8n-nodes-langchain.toolNotion`
 **Versione:** (verifica versione corrente)
 
 **Configurazione come Tool:**
 - Abilitare "Use as Tool"
-- Nome tool: `save_to_notion`
+- Nome tool: "Salva in Notion"
 - Description: `Salva una DSL validata su database Notion. Input: {dsl: DSL object, sessionId: string}. Output: {saved: boolean, notionUrl: string, pageId: string}`
 
 **Parametri:**
@@ -345,665 +474,77 @@ Genera SOLO il JSON valido, senza commenti o spiegazioni.
 ## 3. System Prompt AI Agent
 
 ```markdown
-Sei un esperto nella generazione e validazione di DSL (Domain Specific Language) per pratiche burocratiche italiane.
+# Assistente per la Creazione di DSL Burocratiche
+
+Sei un assistente specializzato nella creazione di DSL (Domain Specific Language) per pratiche burocratiche italiane.
+
+## Tool disponibili
+
+- **Crea DSL**: genera una DSL JSON strutturata da requisiti in linguaggio naturale
+- **Valida DSL**: valida formalmente lo schema di una DSL
+- **Salva in Notion**: salva una DSL validata nel database Notion
 
 ## Il tuo compito
 
-1. **Raccogliere i requisiti** per una pratica burocratica dall'utente
-2. **Generare una DSL JSON** strutturata usando il tool "generate_dsl"
-3. **Validare la DSL** generata usando il tool "validate_dsl"
-4. **Gestire gli errori** analizzando i diagnostics
-5. **Salvare su Notion** quando la DSL è validata con successo
+1. Chiedi all'utente di descrivere TUTTI i requisiti in UN'UNICA risposta
+2. Quando ricevi i requisiti, chiama "Crea DSL" passando il testo completo
+3. Mostra la DSL generata all'utente
+4. STOP - non validare, non salvare, attendi istruzioni
 
-## Formato DSL richiesto
+## Come comportarti
 
-```json
-{
-  "title": "Nome pratica",
-  "evaluation_mode": "incremental",
-  "steps": [
-    {
-      "var": "nome_variabile",
-      "ask": "Domanda per l'utente",
-      "type": "boolean|string|number",
-      "skip_if": "condizione opzionale"
-    }
-  ],
-  "reasons_if_fail": [
-    {
-      "when": "condizione JavaScript",
-      "reason": "Spiegazione chiara",
-      "check_after_vars": ["var1", "var2"],
-      "blocking": true
-    }
-  ],
-  "next_actions_if_ok": ["Azione 1", "Azione 2"]
-}
-```
+**Primo messaggio:**
+"Descrivi tutti i requisiti e le condizioni di ammissibilità per la pratica burocratica che vuoi gestire. Includi: chi può richiedere, requisiti economici (ISEE), requisiti di residenza, condizioni temporali, documenti necessari, e tutto ciò che è rilevante."
 
-## Regole importanti
+**Dopo la risposta dell'utente:**
+- Chiama "Crea DSL" passando ESATTAMENTE il testo fornito dall'utente
+- NON riformulare, NON riassumere
+- Mostra la DSL generata
 
-- Ogni step raccoglie UNA sola informazione
-- Usa type: boolean per sì/no, string per scelte multiple, number per valori numerici
-- Per cittadinanza extracomunitaria, crea sempre due step separati
-- Ogni reason deve verificare UN solo requisito
-- check_after_vars deve contenere TUTTE le variabili usate in "when"
-- La condition "when" deve restituire true quando il requisito FALLISCE
-- Per requisiti "almeno uno di", usa AND: var1 === false && var2 === false
+**Dopo aver mostrato la DSL:**
+- STOP
+- Attendi istruzioni dall'utente
 
-## Procedura operativa
+## Cosa NON fare
 
-### Fase 1: Raccolta Requisiti
-Chiedi all'utente di descrivere i requisiti della pratica. Informazioni necessarie:
-- **Cittadinanza**: italiana, UE, extracomunitaria?
-- **ISEE**: è richiesto? Quale soglia?
-- **Residenza**: dove deve essere residente il richiedente/beneficiario?
-- **Tempistiche**: ci sono scadenze (es. giorni dal parto, anno corrente)?
-- **Documenti**: quali documenti sono necessari?
-- **Condizioni speciali**: figli disabili, tipo di evento (nascita/adozione/affidamento), etc.
+- NON fare domande multiple
+- NON raccogliere requisiti passo-passo
+- NON chiedere conferme prima di chiamare "Crea DSL"
+- NON validare automaticamente
+- NON salvare automaticamente
 
-### Fase 2: Generazione DSL
-Quando hai abbastanza informazioni:
-1. Chiama `generate_dsl` con i requisiti raccolti
-2. Se il tool restituisce errore di parsing JSON, riprova fino a 2 volte
-3. Se fallisce 3 volte, chiedi all'utente se vuole semplificare i requisiti
-
-### Fase 3: Validazione
-Con la DSL generata:
-1. Chiama `validate_dsl` passando l'oggetto DSL
-2. Analizza il campo `diagnostics.type`:
-
-**Se diagnostics.type === "syntax":**
-- La DSL ha errori di schema
-- Richiama `generate_dsl` includendo nel prompt gli errori specifici da `diagnostics.details`
-- Massimo 3 tentativi totali
-
-**Se diagnostics.type === "interpretation":**
-- La DSL è sintatticamente corretta ma logicamente sbagliata
-- Poni all'utente le domande in `diagnostics.questionsForUser`
-- Con le risposte, rigenera la DSL
-
-**Se diagnostics.type === "logic":**
-- Alcuni test falliscono ma potrebbe essere comportamento atteso
-- Mostra all'utente i test falliti
-- Chiedi se è corretto o va modificata la DSL
-- Se va modificata, raccogli le correzioni e rigenera
-
-**Se diagnostics.type === "ok":**
-- Tutti i test passano!
-- Procedi alla Fase 4
-
-### Fase 4: Salvataggio
-1. Chiama `save_to_notion` passando:
-   - `dsl`: l'oggetto DSL validato
-   - `sessionId`: l'ID della sessione corrente (se disponibile)
-2. Conferma all'utente con il link Notion restituito
-3. Mostra un riepilogo: titolo pratica, numero step, numero regole
-
-## Gestione errori
-
-- **Massimo 3 tentativi** per generare una DSL corretta
-- **Sempre porre domande specifiche** quando i requisiti sono ambigui
-- **Non inventare requisiti**: se qualcosa non è chiaro, chiedi
-- **Se impossibile generare DSL corretta** dopo 3 tentativi:
-  - Spiega il problema all'utente
-  - Suggerisci di semplificare i requisiti o chiarire le contraddizioni
-
-## Tono conversazionale
-
-- Sii chiaro e professionale
-- Usa elenchi puntati per chiarezza
-- Conferma sempre i requisiti raccolti prima di generare
-- Celebra quando la DSL è validata con successo!
-
-## Esempio di conversazione
-
-**Utente:** "Voglio creare la DSL per il Bonus Nido"
-
-**Tu:**
-"Perfetto! Per creare la DSL del Bonus Nido ho bisogno di raccogliere i requisiti. Puoi dirmi:
-
-1. Requisiti di cittadinanza?
-2. C'è un requisito ISEE? Se sì, quale soglia?
-3. Requisiti di residenza?
-4. Ci sono tempistiche specifiche?
-5. Quali documenti servono?"
-
-[Utente risponde...]
-
-**Tu:**
-"Grazie! Ricapitolando i requisiti:
-- Cittadinanza: italiana o UE
-- ISEE: DSU valida con ISEE minorenni ≤ 40.000€
-- Residenza: ...
-[...]
-
-Confermi che sia tutto corretto?"
-
-[Utente conferma...]
-
-**Tu:** "Perfetto, genero la DSL..."
-[Chiama generate_dsl]
-[Chiama validate_dsl]
-"✅ DSL validata con successo! Ho eseguito 15 test automatici e sono tutti passati."
-[Chiama save_to_notion]
-"✅ DSL salvata su Notion: [link]
-
-Riepilogo:
-- Pratica: Bonus Nido
-- Steps: 8
-- Regole: 5"
 ```
 
 ---
 
-## 4. Codice Tool "validate_dsl"
+## 4. Codice Validatore DSL Schema
 
-**File:** Tutto il contenuto di `dsl-validator-service.js` inline
+**File:** `dsl-schema-validator.js`
 
-```javascript
-const dsl = $input.first().json.dsl;
+Il codice completo per la validazione dello schema DSL si trova nel file `dsl-schema-validator.js`.
 
-// ============================================================================
-// CORE DSL LOGIC
-// ============================================================================
+### Cosa fa il validatore
 
-function toBool(s) {
-    if (typeof s === 'boolean') return s;
-    const t = String(s).toLowerCase().trim();
-    return ['si', 'sì', 'yes', 'y', 'true', '1'].includes(t);
+Esegue una **validazione formale dello schema** DSL, verificando:
+
+1. **Campi obbligatori**: title, evaluation_mode, steps, reasons_if_fail, next_actions_if_ok
+2. **Tipi corretti**:
+   - evaluation_mode deve essere "incremental" o "batch"
+   - steps deve essere un array con oggetti contenenti var, ask, type
+   - type deve essere "boolean", "string" o "number"
+3. **Coerenza variabili**: tutte le variabili referenziate in check_after_vars devono essere dichiarate in steps
+
+### Output
+
+```json
+{
+  "valid": true|false,
+  "errors": ["errore 1", "errore 2", ...],
+  "message": "DSL valida" | "Trovati N errori di validazione"
 }
-
-function evaluateIncrementalReasons(practice, vars, justCollectedVar) {
-    const reasons = Array.isArray(practice.reasons_if_fail) ? practice.reasons_if_fail : [];
-
-    for (const r of reasons) {
-        const checkAfterVars = Array.isArray(r.check_after_vars) ? r.check_after_vars : [];
-
-        if (checkAfterVars.includes(justCollectedVar)) {
-            const allVarsAvailable = checkAfterVars.every(v => vars[v] !== null && vars[v] !== undefined);
-
-            if (allVarsAvailable && r.when) {
-                try {
-                    const fn = Function(...Object.keys(vars), `return (${r.when});`);
-                    const failed = !!fn(...Object.values(vars));
-
-                    if (failed && r.blocking) {
-                        return {
-                            failed: true,
-                            reason: String(r.reason || 'Requisito non soddisfatto.')
-                        };
-                    }
-                } catch (e) {
-                    return {
-                        failed: true,
-                        reason: `Errore valutazione: ${e.message}`
-                    };
-                }
-            }
-        }
-    }
-
-    return { failed: false };
-}
-
-function findNextStep(steps, currentIndex, vars) {
-    for (let i = currentIndex; i < steps.length; i++) {
-        const step = steps[i];
-
-        if (step.skip_if) {
-            try {
-                const fn = Function(...Object.keys(vars), `return (${step.skip_if});`);
-                const shouldSkip = !!fn(...Object.values(vars));
-
-                if (shouldSkip) {
-                    continue;
-                }
-            } catch (e) {
-                console.error('Error evaluating skip_if:', e);
-            }
-        }
-
-        return { index: i, step };
-    }
-
-    return null;
-}
-
-function createCTX(practice) {
-    const practiceCode = practice.title || "pratica_senza_titolo";
-    const steps = Array.isArray(practice.steps) ? practice.steps : [];
-    const varNames = steps.map(s => s?.var).filter(Boolean);
-
-    const variables = {};
-    const checklist = {};
-    for (const v of varNames) {
-        variables[v] = null;
-        checklist[v] = false;
-    }
-
-    const sessionId = String(Date.now());
-    const userId = "test_user";
-
-    return {
-        session_id: sessionId,
-        user_id: userId,
-        practice_code: practiceCode,
-        step_index: 0,
-        variables,
-        checklist,
-        history: [{ role: 'system', msg: 'sessione creata' }],
-        status: 'collecting',
-        last_prompt: null,
-        last_user: null,
-        last_result: null,
-    };
-}
-
-function runTest(dsl, inputs, testName) {
-    const ctx = createCTX(dsl);
-    const steps = dsl.steps || [];
-    const evaluationMode = dsl.evaluation_mode || 'batch';
-
-    let questionsAsked = 0;
-    let inputIndex = 0;
-
-    while (ctx.status === 'collecting') {
-        const nextStepResult = findNextStep(steps, ctx.step_index, ctx.variables);
-
-        if (!nextStepResult) {
-            ctx.status = 'checking';
-            break;
-        }
-
-        const step = nextStepResult.step;
-        questionsAsked++;
-
-        if (inputIndex >= inputs.length) {
-            return {
-                status: 'ERROR',
-                result: null,
-                reason: 'Not enough inputs',
-                questionsAsked,
-                variables: ctx.variables
-            };
-        }
-
-        let msg = inputs[inputIndex++];
-        let val = msg;
-
-        if (step.type === 'number') {
-            val = parseFloat(String(msg).replace(',', '.'));
-            if (Number.isNaN(val)) {
-                return {
-                    status: 'ERROR',
-                    result: null,
-                    reason: `Invalid number: ${msg}`,
-                    questionsAsked,
-                    variables: ctx.variables
-                };
-            }
-        }
-
-        if (step.type === 'boolean') {
-            val = toBool(msg);
-        }
-
-        ctx.variables[step.var] = val;
-        ctx.checklist[step.var] = true;
-        ctx.step_index = nextStepResult.index + 1;
-
-        if (evaluationMode === 'incremental') {
-            const evalResult = evaluateIncrementalReasons(dsl, ctx.variables, step.var);
-
-            if (evalResult.failed) {
-                ctx.last_result = 'non_ammissibile';
-                ctx.status = 'complete';
-
-                return {
-                    status: 'PASS',
-                    result: 'non_ammissibile',
-                    reason: evalResult.reason,
-                    questionsAsked,
-                    variables: ctx.variables
-                };
-            }
-        }
-    }
-
-    if (ctx.status === 'checking' || ctx.status === 'collecting') {
-        let result = 'ammissibile';
-        const failedReasons = [];
-
-        if (evaluationMode !== 'incremental') {
-            const reasons = Array.isArray(dsl.reasons_if_fail) ? dsl.reasons_if_fail : [];
-
-            for (const r of reasons) {
-                try {
-                    const fn = Function(...Object.keys(ctx.variables), `return (${r.when});`);
-                    const failed = !!fn(...Object.values(ctx.variables));
-                    if (failed && r.reason) {
-                        failedReasons.push(String(r.reason));
-                    }
-                } catch (e) {
-                    console.error('Batch evaluation error:', e);
-                }
-            }
-
-            if (failedReasons.length > 0) {
-                result = 'non_ammissibile';
-            }
-        }
-
-        ctx.last_result = result;
-        ctx.status = 'complete';
-
-        const reasonText = failedReasons.length > 0 ? failedReasons.join('; ') : 'N/A';
-
-        return {
-            status: 'PASS',
-            result,
-            reason: reasonText,
-            questionsAsked,
-            variables: ctx.variables
-        };
-    }
-
-    return {
-        status: 'ERROR',
-        result: null,
-        reason: 'Unknown error',
-        questionsAsked,
-        variables: ctx.variables
-    };
-}
-
-// ============================================================================
-// SCHEMA VALIDATION
-// ============================================================================
-
-function validateDSLSchema(dsl) {
-    const errors = [];
-
-    if (!dsl.title) errors.push('Missing: title');
-    if (!dsl.evaluation_mode) errors.push('Missing: evaluation_mode');
-    if (!Array.isArray(dsl.steps)) errors.push('Missing or invalid: steps (must be array)');
-    if (!Array.isArray(dsl.reasons_if_fail)) errors.push('Missing or invalid: reasons_if_fail (must be array)');
-    if (!Array.isArray(dsl.next_actions_if_ok)) errors.push('Missing or invalid: next_actions_if_ok (must be array)');
-
-    if (dsl.evaluation_mode && !['incremental', 'batch'].includes(dsl.evaluation_mode)) {
-        errors.push(`Invalid evaluation_mode: "${dsl.evaluation_mode}" (must be "incremental" or "batch")`);
-    }
-
-    const declaredVars = new Set();
-    dsl.steps?.forEach((step, idx) => {
-        if (!step.var) errors.push(`Step ${idx}: missing var`);
-        if (!step.ask) errors.push(`Step ${idx}: missing ask`);
-        if (!step.type) errors.push(`Step ${idx}: missing type`);
-        if (step.type && !['string', 'number', 'boolean'].includes(step.type)) {
-            errors.push(`Step ${idx}: invalid type "${step.type}"`);
-        }
-        if (step.var) declaredVars.add(step.var);
-    });
-
-    dsl.reasons_if_fail?.forEach((reason, idx) => {
-        if (!reason.when) errors.push(`Reason ${idx}: missing when`);
-        if (!reason.reason) errors.push(`Reason ${idx}: missing reason text`);
-        if (!Array.isArray(reason.check_after_vars)) {
-            errors.push(`Reason ${idx}: missing or invalid check_after_vars (must be array)`);
-        }
-        if (typeof reason.blocking !== 'boolean') {
-            errors.push(`Reason ${idx}: missing or invalid blocking (must be boolean)`);
-        }
-
-        reason.check_after_vars?.forEach(varName => {
-            if (!declaredVars.has(varName)) {
-                errors.push(`Reason ${idx}: variable "${varName}" in check_after_vars not declared in steps`);
-            }
-        });
-    });
-
-    return {
-        valid: errors.length === 0,
-        errors
-    };
-}
-
-// ============================================================================
-// AUTO TEST CASE GENERATION
-// ============================================================================
-
-function generateHappyPathInputs(dsl) {
-    const inputs = [];
-    const steps = dsl.steps || [];
-
-    for (const step of steps) {
-        if (step.type === 'boolean') {
-            inputs.push('sì');
-        } else if (step.type === 'number') {
-            inputs.push('10000');
-        } else if (step.type === 'string') {
-            if (step.ask.includes('nascita')) {
-                inputs.push('nascita');
-            } else if (step.ask.includes('dipendente')) {
-                inputs.push('dipendente_privato');
-            } else {
-                inputs.push('valido');
-            }
-        }
-    }
-
-    return inputs;
-}
-
-function generateTestCaseForReason(reason, dsl, reasonIndex) {
-    const inputs = generateHappyPathInputs(dsl);
-
-    const checkVars = reason.check_after_vars || [];
-
-    checkVars.forEach(varName => {
-        const stepIdx = dsl.steps.findIndex(s => s.var === varName);
-        if (stepIdx >= 0) {
-            const step = dsl.steps[stepIdx];
-
-            if (reason.when.includes('=== false') && step.type === 'boolean') {
-                inputs[stepIdx] = 'no';
-            } else if (reason.when.includes('> ') && step.type === 'number') {
-                const match = reason.when.match(/>\s*(\d+)/);
-                if (match) {
-                    const threshold = parseInt(match[1]);
-                    inputs[stepIdx] = String(threshold + 1000);
-                }
-            }
-        }
-    });
-
-    return {
-        name: `Test Reason ${reasonIndex + 1}: ${reason.reason.substring(0, 50)}...`,
-        inputs,
-        expectedResult: 'non_ammissibile',
-        expectedQuestions: calculateExpectedQuestions(reason, dsl)
-    };
-}
-
-function calculateExpectedQuestions(reason, dsl) {
-    if (dsl.evaluation_mode === 'incremental') {
-        const checkVars = reason.check_after_vars || [];
-        let maxStepIndex = 0;
-
-        checkVars.forEach(varName => {
-            const stepIdx = dsl.steps.findIndex(s => s.var === varName);
-            if (stepIdx > maxStepIndex) maxStepIndex = stepIdx;
-        });
-
-        return maxStepIndex + 1;
-    }
-
-    return dsl.steps.length;
-}
-
-function autoGenerateTestCases(dsl) {
-    const testCases = [];
-
-    testCases.push({
-        name: 'Happy Path - All requirements met',
-        inputs: generateHappyPathInputs(dsl),
-        expectedResult: 'ammissibile',
-        expectedQuestions: dsl.steps.length
-    });
-
-    dsl.reasons_if_fail?.forEach((reason, idx) => {
-        testCases.push(generateTestCaseForReason(reason, dsl, idx));
-    });
-
-    return testCases;
-}
-
-// ============================================================================
-// ERROR CLASSIFICATION
-// ============================================================================
-
-function classifyErrors(dsl, testResults, schemaValidation) {
-    const diagnostics = {
-        type: null,
-        confidence: 0,
-        details: [],
-        suggestedAction: null,
-        questionsForUser: []
-    };
-
-    if (!schemaValidation.valid) {
-        return {
-            type: 'syntax',
-            confidence: 1.0,
-            details: schemaValidation.errors,
-            suggestedAction: 'retry_with_feedback',
-            questionsForUser: []
-        };
-    }
-
-    const failedTests = testResults.filter(t => t.status === 'FAIL');
-    if (failedTests.length === 0) {
-        return {
-            type: 'ok',
-            confidence: 1.0,
-            details: ['All tests passed'],
-            suggestedAction: 'save_to_notion',
-            questionsForUser: []
-        };
-    }
-
-    const happyPathTest = testResults.find(t => t.name.includes('Happy Path'));
-
-    if (happyPathTest && happyPathTest.status === 'FAIL') {
-        return {
-            type: 'interpretation',
-            confidence: 0.8,
-            details: [`Happy path failed: ${happyPathTest.reason}`],
-            suggestedAction: 'ask_clarification',
-            questionsForUser: [
-                `Il test "happy path" (tutti requisiti soddisfatti) è risultato inammissibile per: "${happyPathTest.reason}". Questo è corretto o c'è un errore nella DSL?`
-            ]
-        };
-    }
-
-    if (failedTests.length < testResults.length / 2) {
-        return {
-            type: 'logic',
-            confidence: 0.6,
-            details: failedTests.map(t => t.reason || t.name),
-            suggestedAction: 'review_with_user',
-            questionsForUser: failedTests.map((t, idx) =>
-                `Test ${idx + 1} ha dato risultato inatteso: ${t.name}. È corretto?`
-            )
-        };
-    }
-
-    return {
-        type: 'logic',
-        confidence: 0.7,
-        details: [`${failedTests.length}/${testResults.length} test falliti`],
-        suggestedAction: 'review_requirements',
-        questionsForUser: [
-            `La maggior parte dei test fallisce (${failedTests.length}/${testResults.length}). I requisiti potrebbero contenere contraddizioni. Vuoi rivederli?`
-        ]
-    };
-}
-
-// ============================================================================
-// MAIN VALIDATION FUNCTION
-// ============================================================================
-
-function validateDSL(dsl) {
-    const result = {
-        valid: false,
-        schemaValidation: null,
-        testResults: [],
-        summary: {
-            totalTests: 0,
-            passed: 0,
-            failed: 0
-        },
-        diagnostics: null
-    };
-
-    const schemaValidation = validateDSLSchema(dsl);
-    result.schemaValidation = schemaValidation;
-
-    if (!schemaValidation.valid) {
-        result.diagnostics = classifyErrors(dsl, [], schemaValidation);
-        return result;
-    }
-
-    const testCases = autoGenerateTestCases(dsl);
-
-    const testResults = [];
-    let passed = 0;
-    let failed = 0;
-
-    for (const testCase of testCases) {
-        const testResult = runTest(dsl, testCase.inputs, testCase.name);
-
-        const isPass = testResult.result === testCase.expectedResult;
-
-        if (isPass) {
-            passed++;
-        } else {
-            failed++;
-        }
-
-        testResults.push({
-            testName: testCase.name,
-            status: isPass ? 'PASS' : 'FAIL',
-            result: testResult.result,
-            expectedResult: testCase.expectedResult,
-            questionsAsked: testResult.questionsAsked,
-            expectedQuestions: testCase.expectedQuestions,
-            reason: testResult.reason,
-            variables: testResult.variables
-        });
-    }
-
-    result.testResults = testResults;
-    result.summary = {
-        totalTests: testCases.length,
-        passed,
-        failed
-    };
-    result.valid = failed === 0;
-
-    result.diagnostics = classifyErrors(dsl, testResults, schemaValidation);
-
-    return result;
-}
-
-// ============================================================================
-// EXECUTE
-// ============================================================================
-
-const validationResult = validateDSL(dsl);
-return { json: validationResult };
 ```
+
+**Note:** Questo validatore NON esegue test funzionali, ma solo controlli sintattici e strutturali dello schema
 
 ---
 
@@ -1045,108 +586,103 @@ NOTION_DATABASE_ID=<your-database-id>
 Voglio creare la DSL per il Bonus Nido
 
 🤖 AI AGENT
-Perfetto! Per creare la DSL del Bonus Nido ho bisogno di raccogliere i requisiti.
-Puoi dirmi:
-
-1. Requisiti di cittadinanza?
-2. C'è un requisito ISEE? Se sì, quale soglia?
-3. Requisiti di residenza?
-4. Ci sono tempistiche specifiche?
-5. Quali documenti servono?
+Descrivi tutti i requisiti e le condizioni di ammissibilità per la pratica burocratica che vuoi gestire. Includi: chi può richiedere, requisiti economici (ISEE), requisiti di residenza, condizioni temporali, documenti necessari, e tutto ciò che è rilevante.
 
 👤 UTENTE
-- Cittadini italiani o UE, extracomunitari con permesso lungo soggiorno
-- ISEE minorenni sotto 40.000€
-- Bambino iscritto all'asilo nido
-- Residenza in Italia
+Il Bonus Nido è per cittadini italiani, UE o extracomunitari con permesso lungo soggiorno. Serve ISEE minorenni sotto 40.000€. Il bambino deve essere iscritto all'asilo nido e residente in Italia.
 
 🤖 AI AGENT
-Grazie! Ricapitolando:
-- Cittadinanza: italiana, UE, o extracomunitaria con permesso lungo soggiorno
-- ISEE: DSU valida con ISEE minorenni ≤ 40.000€
-- Bambino iscritto all'asilo nido
-- Residenza in Italia per il bambino
+[CHIAMA "Crea DSL" con i requisiti]
 
-Confermi?
-
-👤 UTENTE
-Sì, confermo
-
-🤖 AI AGENT
-[CHIAMA generate_dsl]
-Perfetto! Ho generato la DSL. Ora la valido...
-
-[CHIAMA validate_dsl]
-
-✅ Validazione completata!
-- Test eseguiti: 6
-- Test superati: 6
-- Test falliti: 0
-
-Salvo la DSL su Notion...
-
-[CHIAMA save_to_notion]
-
-✅ DSL salvata con successo!
-
-📋 Riepilogo:
-- Pratica: Bonus Nido
-- Steps: 5
-- Regole: 3
-- Link Notion: https://notion.so/...
-
-La DSL è pronta per essere utilizzata!
+Ecco la DSL generata:
+```json
+{
+  "title": "Bonus Nido",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Sei cittadino italiano o dell'Unione Europea? (sì/no)",
+      "type": "boolean"
+    },
+    ...
+  ],
+  "reasons_if_fail": [...],
+  "next_actions_if_ok": [...]
+}
 ```
 
-### Scenario: Errore di Interpretazione
+La DSL è stata validata automaticamente e non presenta errori di schema!
+```
+
+### Scenario: Errore di Schema (Correzione Automatica)
 
 ```
+👤 UTENTE
+Crea DSL per Assegno Unico
+
 🤖 AI AGENT
-[CHIAMA validate_dsl]
-
-⚠️ Ho rilevato un possibile problema nella DSL.
-
-Il test "happy path" (caso con tutti i requisiti soddisfatti) è risultato
-INAMMISSIBILE per: "Requisito cittadinanza: è necessario essere cittadino
-italiano o UE"
-
-Questo è corretto? O dovrei modificare la DSL?
+Descrivi tutti i requisiti...
 
 👤 UTENTE
-No, è sbagliato! Anche gli extracomunitari con permesso lungo soggiorno
-possono richiederlo
+[Descrive requisiti...]
 
 🤖 AI AGENT
-Capito! Rigenero la DSL correggendo il requisito di cittadinanza...
+[CHIAMA "Crea DSL"]
+[Internamente: validazione fallisce, loop di correzione automatico]
 
-[CHIAMA generate_dsl con feedback]
-[CHIAMA validate_dsl]
+[Tentativo 1: errore "variabile figli_in_tutela non dichiarata"]
+[Tentativo 2: correzione → validazione OK]
 
-✅ Perfetto! Ora tutti i test passano. Procedo al salvataggio...
+Ecco la DSL generata:
+```json
+{
+  "title": "Assegno Unico",
+  ...
+}
+```
+
+La DSL è stata validata con successo (corretta automaticamente al 2° tentativo).
 ```
 
 ---
 
 ## 7. Testing & Debug
 
-### Test Singoli Tool
+### Test Singoli Componenti
 
-#### Test Tool: generate_dsl
-1. Aprire il nodo OpenAI tool in n8n
-2. Usare "Execute Node" con input di test:
+#### Test "Crea DSL" - Generazione
+1. Preparare input test:
 ```json
 {
-  "query": "Bonus Nido: cittadini italiani o UE, ISEE minorenni sotto 40.000€"
+  "mode": "generazione",
+  "requisiti_utente": "Bonus Nido: cittadini italiani o UE, ISEE minorenni sotto 40.000€"
 }
 ```
-3. Verificare output JSON valido
+2. Eseguire nodo Code "Prepare Prompt"
+3. Verificare output: `systemPrompt` e `userMessage` popolati
+4. Eseguire nodo "Message a Model"
+5. Verificare output JSON valido
 
-#### Test Tool: validate_dsl
-1. Aprire il nodo Code tool
-2. Usare "Execute Node" con una DSL di esempio
-3. Verificare presenza di: `valid`, `diagnostics`, `testResults`
+#### Test "Crea DSL" - Correzione
+1. Preparare input test con errori:
+```json
+{
+  "mode": "correzione",
+  "requisiti_utente": "...",
+  "dsl_da_correggere": { /* DSL con errori */ },
+  "errori_validazione": ["Reason 5: variabile X non dichiarata"],
+  "tentativo_numero": 2
+}
+```
+2. Verificare che il prompt contenga errori e DSL da correggere
 
-#### Test Tool: save_to_notion
+#### Test Validatore
+1. Aprire nodo Code validator
+2. Testare con DSL valida → `valid: true`
+3. Testare con DSL con errori → `valid: false, errors: [...]`
+
+#### Test "Salva in Notion"
 1. Verificare database Notion esistente
 2. Testare con DSL validata
 3. Verificare creazione pagina su Notion
@@ -1154,28 +690,35 @@ Capito! Rigenero la DSL correggendo il requisito di cittadinanza...
 ### Test End-to-End
 
 #### Scenario 1: Happy Path
-- Input: Requisiti chiari e completi
-- Expected: DSL generata → validata → salvata
-- Verificare: Link Notion restituito
+- Input: Requisiti chiari e completi in un'unica risposta
+- Expected: AI Agent chiama "Crea DSL" → DSL generata e validata al primo tentativo
+- Verificare: DSL mostrata all'utente
 
-#### Scenario 2: Requisiti Ambigui
+#### Scenario 2: Requisiti Incompleti
 - Input: "Voglio il bonus bebè"
-- Expected: AI Agent chiede specifiche
-- Verificare: Domande appropriate
+- Expected: AI Agent chiede di descrivere TUTTI i requisiti
+- Verificare: Messaggio con template richiesta
 
-#### Scenario 3: Errore Sintassi
-- Forzare errore DSL (modificare prompt)
-- Expected: Rigenerazione automatica
-- Verificare: Max 3 tentativi
+#### Scenario 3: Errore Schema con Autocorrezione
+- Forzare errore (es. modificare prompt per generare variabile sbagliata)
+- Expected: Correzione automatica in 2-3 tentativi
+- Verificare: DSL finale valida, numero tentativi nel log
+
+#### Scenario 4: Errore Persistente (3 tentativi falliti)
+- Forzare errori ripetuti
+- Expected: Errore dopo 3 tentativi
+- Verificare: Messaggio di errore chiaro
 
 ### Common Issues
 
 | Problema | Causa | Soluzione |
 |----------|-------|-----------|
-| "Tool not found" | Tool non connesso ad Agent | Verificare connessioni ai_tool |
-| "Invalid JSON" | OpenAI genera JSON malformato | Aumentare temperature=0, usare responseFormat |
+| "Tool not found" | Tool non connesso ad Agent | Verificare connessioni ai_tool all'AI Agent |
+| "Invalid JSON" | OpenAI genera JSON malformato | Verificare temperature=0, seed, responseFormat=json_object |
 | "Notion error" | Database ID errato | Verificare NOTION_DATABASE_ID |
-| "Validation sempre fallisce" | Code node non esegue correttamente | Verificare sintassi JavaScript, console.log |
+| "Input undefined" | Campo requisiti_utente mancante | Verificare che il nodo precedente passi il campo corretto |
+| "Loop infinito" | Validazione sempre fallisce | Controllare logica feedback loop, max 3 tentativi |
+| "Inconsistenza variabili" | GPT-4.1-mini meno affidabile | Usare GPT-4o (non mini) con temperature=0 e seed |
 
 ---
 
@@ -1193,29 +736,63 @@ Capito! Rigenero la DSL correggendo il requisito di cittadinanza...
 
 ## 9. Checklist Implementazione
 
+### Setup Iniziale
 - [ ] Creare workflow "DSL Chat Agent" su n8n
 - [ ] Aggiungere Chat Trigger
 - [ ] Aggiungere Window Buffer Memory
-- [ ] Aggiungere OpenAI Chat Model (principale)
+- [ ] Aggiungere OpenAI Chat Model (principale, gpt-4o)
 - [ ] Aggiungere AI Agent node
 - [ ] Configurare system prompt AI Agent (Sezione 3)
-- [ ] Aggiungere Tool: OpenAI (generate_dsl)
-- [ ] Configurare system message tool OpenAI (Sezione 2, Nodo 5)
-- [ ] Aggiungere Tool: Code (validate_dsl)
-- [ ] Copiare codice validation (Sezione 4)
-- [ ] Aggiungere Tool: Notion (save_to_notion)
+
+### Tool "Crea DSL"
+- [ ] Creare nodo Code "Prepare Prompt"
+- [ ] Copiare codice da Sezione 2, Nodo 5.1
+- [ ] Creare nodo "Message a Model" (OpenAI)
+- [ ] Configurare: model=gpt-4o, temperature=0, seed=42
+- [ ] Collegare System Message a `{{ $json.systemPrompt }}`
+- [ ] Collegare User Message a `{{ $json.userMessage }}`
+- [ ] Creare nodo Code "Validate DSL Schema"
+- [ ] Copiare codice da file `dsl-schema-validator.js` (Sezione 4)
+- [ ] Implementare logica feedback loop (if errori → torna a Prepare con mode=correzione)
+
+### Tool "Salva in Notion"
+- [ ] Aggiungere Tool: Notion
 - [ ] Configurare proprietà Notion (Sezione 5)
-- [ ] Connettere tutti i nodi
-- [ ] Verificare connessioni ai_tool
+- [ ] Configurare nome tool: "Salva in Notion"
+
+### Connessioni e Configurazioni
+- [ ] Connettere Chat Trigger → AI Agent (main)
+- [ ] Connettere Window Memory → AI Agent (ai_memory)
+- [ ] Connettere OpenAI Model → AI Agent (ai_languageModel)
+- [ ] Connettere Tool "Crea DSL" → AI Agent (ai_tool)
+- [ ] Connettere Tool "Salva in Notion" → AI Agent (ai_tool)
 - [ ] Configurare credentials OpenAI
 - [ ] Configurare credentials Notion
 - [ ] Configurare environment variable NOTION_DATABASE_ID
-- [ ] Testare singoli tool
-- [ ] Testare workflow end-to-end
+
+### Testing
+- [ ] Testare nodo "Prepare Prompt" (mode=generazione)
+- [ ] Testare nodo "Prepare Prompt" (mode=correzione)
+- [ ] Testare nodo "Message a Model"
+- [ ] Testare nodo "Validate DSL"
+- [ ] Testare feedback loop completo (max 3 tentativi)
+- [ ] Testare Tool "Salva in Notion"
+- [ ] Testare workflow end-to-end con requisiti semplici
+- [ ] Testare workflow con requisiti complessi (Assegno Unico)
+- [ ] Verificare autocorrezione su errori di schema
+
+### Deploy
 - [ ] Attivare workflow
+- [ ] Monitorare primi utilizzi
+- [ ] Verificare performance (tempo risposta, tasso successo)
 
 ---
 
-**Versione:** 1.0
-**Data:** 2025-01-17
+**Versione:** 2.0
+**Data:** 2025-01-20
 **Autore:** Claude Code
+**Changelog v2.0:**
+- Aggiunto feedback loop automatico per correzione DSL
+- Prompt unificato con modalità generazione/correzione
+- Configurazione OpenAI ottimizzata (gpt-4o, T=0, seed)
+- System prompt AI Agent semplificato (raccolta requisiti in unica domanda)

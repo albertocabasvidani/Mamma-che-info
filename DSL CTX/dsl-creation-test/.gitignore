@@ -1,0 +1,9 @@
+# Creation test results
+creation-test-result-*.json
+dsl-created-*.json
+
+# Node modules (se mai servissero)
+node_modules/
+
+# Environment
+.env
