@@ -1,4 +1,9 @@
-const mode = $json.mode || "generazione";
+// Configurazione
+const MAX_TENTATIVI = parseInt($env.MAX_DSL_RETRIES || $json.max_tentativi || '3');
+
+// Leggi tentativo corrente e incrementa
+const tentativi = ($json.tentativo_numero || 0) + 1;
+const mode = tentativi === 1 ? "generazione" : "correzione";
 
 const basePrompt = `Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutturata.
 
@@ -129,12 +134,12 @@ ${JSON.stringify({ dsl: $json.dsl_da_correggere }, null, 2)}
 ERRORI DI VALIDAZIONE:
 ${$json.errori_validazione.map((e, i) => `${i + 1}. ${e}`).join('\n')}
 
+(Tentativo ${tentativi}/${MAX_TENTATIVI})
+
 ISTRUZIONI:
 Correggi SOLO gli errori elencati sopra.
 Mantieni tutto il resto della DSL identico.
 Verifica che i nomi delle variabili siano consistenti.
-
-${$json.tentativo_numero ? `(Tentativo ${$json.tentativo_numero}/3)` : ''}
 
 Genera SOLO il JSON valido, senza commenti o markdown code blocks.
 Il JSON deve iniziare con { e terminare con }.`;
@@ -142,7 +147,7 @@ Il JSON deve iniziare con { e terminare con }.`;
   userMessage = `## MODALITÀ: GENERAZIONE NUOVA DSL
 
 REQUISITI DELLA PRATICA BUROCRATICA:
-${$json.requisiti}
+${$json.requisiti_utente || $json.requisiti}
 
 ISTRUZIONI:
 Genera una DSL completa che modelli questi requisiti.
@@ -155,6 +160,9 @@ Il JSON deve iniziare con { e terminare con }.`;
 return {
   json: {
     systemPrompt: basePrompt,
-    userMessage: userMessage
+    userMessage: userMessage,
+    tentativo_numero: tentativi,
+    max_tentativi: MAX_TENTATIVI,
+    requisiti_utente: $json.requisiti_utente || $json.requisiti
   }
 };

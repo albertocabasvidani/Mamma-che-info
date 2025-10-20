@@ -159,7 +159,9 @@ DSL CTX/
             └── dsl-generated.json
 ```
 
-## Configurazione OpenAI
+## Configurazione
+
+### OpenAI
 
 Nel file `dsl-creation-test-runner.js`, modifica:
 
@@ -172,12 +174,23 @@ const OPENAI_CONFIG = {
 };
 ```
 
+### MAX Tentativi
+
+Numero massimo di tentativi di correzione (default: 3):
+
+```javascript
+const MAX_TENTATIVI = 3;  // 1 generazione + 2 correzioni
+```
+
+Questo valore corrisponde a `MAX_DSL_RETRIES` in n8n.
+
 ## Note
 
 - Richiede Node.js v18+ (per fetch nativo)
 - Usa il validatore dalla cartella parent: `../dsl-schema-validator.js`
 - Usa il prompt generator dalla cartella parent: `../nodo-code-generazione-prompt.js`
-- Max 3 tentativi per DSL (1 generazione + 2 correzioni)
+- MAX tentativi configurabile (default: 3)
+- Passaggio contatori tra nodi (tentativo_numero, max_tentativi)
 - Exit code: 0 se DSL valida, 1 se non valida
 
 ## Architettura n8n
@@ -185,14 +198,19 @@ const OPENAI_CONFIG = {
 I file `dsl-schema-validator.js` e `nodo-code-generazione-prompt.js` sono compatibili con i nodi Code di n8n:
 
 - **nodo-code-generazione-prompt.js**: Genera system prompt e user message per OpenAI
-  - Modalità "generazione": prima creazione DSL
-  - Modalità "correzione": fix errori validazione
-  - Input: `$json.mode`, `$json.requisiti`, `$json.dsl_da_correggere`, `$json.errori_validazione`
-  - Output: `{ systemPrompt, userMessage }`
+  - Legge `tentativo_numero` e incrementa automaticamente
+  - Determina mode: `generazione` (tentativo 1) o `correzione` (tentativo > 1)
+  - Input: `$json.requisiti_utente`, `$json.tentativo_numero`, `$json.max_tentativi`
+  - Output: `{ systemPrompt, userMessage, tentativo_numero, max_tentativi, requisiti_utente }`
 
-- **dsl-schema-validator.js**: Valida struttura DSL
-  - Input: `$input.first().json` (la DSL da validare)
-  - Output: `{ valid: boolean, errors: string[], message: string }`
+- **dsl-schema-validator.js**: Valida struttura DSL e gestisce retry loop
+  - Estrae DSL (wrappato o diretto)
+  - Valida schema e decide se ritentare
+  - Input: `$input.first().json` (DSL + contatori)
+  - Output: `{ valid, dsl?, errors?, retry, tentativo_numero, max_tentativi }`
+  - Retry logic: `retry: true` se `tentativo < max_tentativi`
+
+Vedi `n8n-workflow-setup-retry.md` per setup completo del workflow.
 
 ## File di esempio
 

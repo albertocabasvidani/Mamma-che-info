@@ -1,34 +1,42 @@
-// Ottieni la DSL dall'input del nodo precedente
-const dsl = $input.first().json;
+// Ottieni input dal nodo precedente
+const input = $input.first().json;
+
+// Estrai DSL (può essere wrappato in campo "dsl" o diretto)
+const dslRaw = input.dsl || input;
+
+// Leggi contatori e configurazione
+const tentativo = input.tentativo_numero || 1;
+const maxTentativi = input.max_tentativi || 3;
+const requisitiUtente = input.requisiti_utente;
 
 // Validazione schema
 const errors = [];
 
 // 1. Controllo campi obbligatori principali
-if (!dsl.title || typeof dsl.title !== 'string') {
+if (!dslRaw.title || typeof dslRaw.title !== 'string') {
     errors.push('Campo "title" obbligatorio (string)');
 }
 
-if (!dsl.evaluation_mode || !['incremental', 'batch'].includes(dsl.evaluation_mode)) {
+if (!dslRaw.evaluation_mode || !['incremental', 'batch'].includes(dslRaw.evaluation_mode)) {
     errors.push('Campo "evaluation_mode" deve essere "incremental" o "batch"');
 }
 
-if (!Array.isArray(dsl.steps)) {
+if (!Array.isArray(dslRaw.steps)) {
     errors.push('Campo "steps" obbligatorio (array)');
 }
 
-if (!Array.isArray(dsl.reasons_if_fail)) {
+if (!Array.isArray(dslRaw.reasons_if_fail)) {
     errors.push('Campo "reasons_if_fail" obbligatorio (array)');
 }
 
-if (!Array.isArray(dsl.next_actions_if_ok)) {
+if (!Array.isArray(dslRaw.next_actions_if_ok)) {
     errors.push('Campo "next_actions_if_ok" obbligatorio (array)');
 }
 
 // 2. Validazione steps
 const declaredVars = new Set();
-if (Array.isArray(dsl.steps)) {
-    dsl.steps.forEach((step, idx) => {
+if (Array.isArray(dslRaw.steps)) {
+    dslRaw.steps.forEach((step, idx) => {
         if (!step.var || typeof step.var !== 'string') {
             errors.push(`Step ${idx}: campo "var" obbligatorio (string)`);
         } else {
@@ -51,8 +59,8 @@ if (Array.isArray(dsl.steps)) {
 }
 
 // 3. Validazione reasons_if_fail
-if (Array.isArray(dsl.reasons_if_fail)) {
-    dsl.reasons_if_fail.forEach((reason, idx) => {
+if (Array.isArray(dslRaw.reasons_if_fail)) {
+    dslRaw.reasons_if_fail.forEach((reason, idx) => {
         if (!reason.when || typeof reason.when !== 'string') {
             errors.push(`Reason ${idx}: campo "when" obbligatorio (string)`);
         }
@@ -79,8 +87,8 @@ if (Array.isArray(dsl.reasons_if_fail)) {
 }
 
 // 4. Validazione next_actions_if_ok
-if (Array.isArray(dsl.next_actions_if_ok)) {
-    dsl.next_actions_if_ok.forEach((action, idx) => {
+if (Array.isArray(dslRaw.next_actions_if_ok)) {
+    dslRaw.next_actions_if_ok.forEach((action, idx) => {
         if (typeof action !== 'string') {
             errors.push(`Next action ${idx}: deve essere una stringa`);
         }
@@ -88,8 +96,40 @@ if (Array.isArray(dsl.next_actions_if_ok)) {
 }
 
 // Ritorna risultato validazione
+if (errors.length === 0) {
+    // DSL VALIDA
+    return {
+        valid: true,
+        dsl: dslRaw,
+        message: `DSL valida (tentativo ${tentativo}/${maxTentativi})`,
+        tentativo_numero: tentativo,
+        retry: false
+    };
+}
+
+// DSL NON VALIDA - Decidi se ritentare
+if (tentativo < maxTentativi) {
+    // RETRY
+    return {
+        valid: false,
+        errors: errors,
+        message: `Trovati ${errors.length} errori - Tentativo ${tentativo}/${maxTentativi}`,
+        // Dati per il prossimo tentativo
+        dsl_da_correggere: dslRaw,
+        errori_validazione: errors,
+        requisiti_utente: requisitiUtente,
+        tentativo_numero: tentativo,
+        max_tentativi: maxTentativi,
+        retry: true
+    };
+}
+
+// TENTATIVI ESAURITI
 return {
-    valid: errors.length === 0,
+    valid: false,
     errors: errors,
-    message: errors.length === 0 ? 'DSL valida' : `Trovati ${errors.length} errori di validazione`
+    message: `DSL non valida dopo ${tentativo} tentativi`,
+    dsl_da_correggere: dslRaw,
+    tentativo_numero: tentativo,
+    retry: false
 };
