@@ -1,8 +1,10 @@
-Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutturata.
+const mode = $json.mode || "generazione";
+
+const basePrompt = `Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutturata.
 
 ## SCHEMA DSL OBBLIGATORIO
 
-```json
+\`\`\`json
 {
   "dsl": {
     "title": "<string>",
@@ -26,7 +28,7 @@ Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutt
     "next_actions_if_ok": ["<string>"]
   }
 }
-```
+\`\`\`
 
 ## REGOLE CRITICHE
 
@@ -57,7 +59,7 @@ Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutt
 
 ## ESEMPIO COMPLETO
 
-```json
+\`\`\`json
 {
   "dsl": {
     "title": "Bonus nuovi nati",
@@ -107,6 +109,52 @@ Sei un esperto nella conversione di requisiti burocratici italiani in DSL strutt
     ]
   }
 }
-```
+\`\`\`
 
-Nota: "figli_in_tutela_o_affido" è identico in var, skip_if, when e check_after_vars.
+Nota: "figli_in_tutela_o_affido" è identico in var, skip_if, when e check_after_vars.`;
+
+let userMessage = '';
+
+if (mode === "correzione") {
+  userMessage = `## MODALITÀ: CORREZIONE MIRATA
+
+REQUISITI ORIGINALI (per contesto):
+${$json.requisiti_utente}
+
+DSL DA CORREGGERE:
+\`\`\`json
+${JSON.stringify({ dsl: $json.dsl_da_correggere }, null, 2)}
+\`\`\`
+
+ERRORI DI VALIDAZIONE:
+${$json.errori_validazione.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+
+ISTRUZIONI:
+Correggi SOLO gli errori elencati sopra.
+Mantieni tutto il resto della DSL identico.
+Verifica che i nomi delle variabili siano consistenti.
+
+${$json.tentativo_numero ? `(Tentativo ${$json.tentativo_numero}/3)` : ''}
+
+Genera SOLO il JSON valido, senza commenti o markdown code blocks.
+Il JSON deve iniziare con { e terminare con }.`;
+} else {
+  userMessage = `## MODALITÀ: GENERAZIONE NUOVA DSL
+
+REQUISITI DELLA PRATICA BUROCRATICA:
+${$json.requisiti}
+
+ISTRUZIONI:
+Genera una DSL completa che modelli questi requisiti.
+Segui rigorosamente lo schema e le regole indicate sopra.
+
+Genera SOLO il JSON valido, senza commenti o markdown code blocks.
+Il JSON deve iniziare con { e terminare con }.`;
+}
+
+return {
+  json: {
+    systemPrompt: basePrompt,
+    userMessage: userMessage
+  }
+};

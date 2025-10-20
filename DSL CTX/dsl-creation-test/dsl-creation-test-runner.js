@@ -71,8 +71,10 @@ const OPENAI_CONFIG = {
 };
 
 // Carica il prompt dal file
-const promptPath = path.join(__dirname, 'prompt-generazione-dsl.txt');
-const BASE_PROMPT = fs.readFileSync(promptPath, 'utf8');
+const promptPath = path.join(__dirname, '..', 'nodo-code-generazione-prompt.js');
+const promptCode = fs.readFileSync(promptPath, 'utf8');
+// Estrae solo la parte basePrompt dal codice n8n
+const BASE_PROMPT = promptCode.match(/const basePrompt = `([^`]+)`/s)[1];
 
 // Funzione per chiamare OpenAI
 async function callOpenAI(systemPrompt, userMessage) {

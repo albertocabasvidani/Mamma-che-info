@@ -139,21 +139,24 @@ tests/
 ## Struttura cartella
 
 ```
-dsl-creation-test/
-├── dsl-creation-test-runner.js  # Script principale
-├── README.md                    # Questa guida
-├── .env.example                 # Template configurazione
-├── .env                         # Tua chiave API (git-ignored)
-├── .gitignore
-└── tests/                       # Cartella risultati test
-    ├── bonus-nuovi-nati/        # Test Bonus Nuovi Nati
-    │   ├── requisiti.txt
-    │   ├── test-report.md
-    │   └── dsl-generated.json
-    └── assegno-unico/           # Test Assegno Unico
-        ├── requisiti.txt
-        ├── test-report.md
-        └── dsl-generated.json
+DSL CTX/
+├── nodo-code-generazione-prompt.js  # Codice n8n per generazione prompt (system + user)
+├── dsl-schema-validator.js          # Codice n8n per validazione DSL
+└── dsl-creation-test/
+    ├── dsl-creation-test-runner.js  # Script principale test
+    ├── README.md                    # Questa guida
+    ├── .env.example                 # Template configurazione
+    ├── .env                         # Tua chiave API (git-ignored)
+    ├── .gitignore
+    └── tests/                       # Cartella risultati test
+        ├── bonus-nuovi-nati/        # Test Bonus Nuovi Nati
+        │   ├── requisiti.txt
+        │   ├── test-report.md
+        │   └── dsl-generated.json
+        └── assegno-unico/           # Test Assegno Unico
+            ├── requisiti.txt
+            ├── test-report.md
+            └── dsl-generated.json
 ```
 
 ## Configurazione OpenAI
@@ -173,8 +176,23 @@ const OPENAI_CONFIG = {
 
 - Richiede Node.js v18+ (per fetch nativo)
 - Usa il validatore dalla cartella parent: `../dsl-schema-validator.js`
+- Usa il prompt generator dalla cartella parent: `../nodo-code-generazione-prompt.js`
 - Max 3 tentativi per DSL (1 generazione + 2 correzioni)
 - Exit code: 0 se DSL valida, 1 se non valida
+
+## Architettura n8n
+
+I file `dsl-schema-validator.js` e `nodo-code-generazione-prompt.js` sono compatibili con i nodi Code di n8n:
+
+- **nodo-code-generazione-prompt.js**: Genera system prompt e user message per OpenAI
+  - Modalità "generazione": prima creazione DSL
+  - Modalità "correzione": fix errori validazione
+  - Input: `$json.mode`, `$json.requisiti`, `$json.dsl_da_correggere`, `$json.errori_validazione`
+  - Output: `{ systemPrompt, userMessage }`
+
+- **dsl-schema-validator.js**: Valida struttura DSL
+  - Input: `$input.first().json` (la DSL da validare)
+  - Output: `{ valid: boolean, errors: string[], message: string }`
 
 ## File di esempio
 
