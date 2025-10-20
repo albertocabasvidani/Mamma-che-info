@@ -9,6 +9,46 @@ const tentativo = input.tentativo_numero || 1;
 const maxTentativi = input.max_tentativi || 3;
 const requisitiUtente = input.requisiti_utente;
 
+// Helper: Valida sintassi JavaScript e variabili usate
+function validateJSExpression(expression, declaredVars, context) {
+  // 1. Valida sintassi JS
+  try {
+    new Function(expression);
+  } catch (error) {
+    return {
+      valid: false,
+      error: `Sintassi JavaScript invalida in ${context}: ${error.message}`
+    };
+  }
+
+  // 2. Estrai identificatori (variabili, non keywords/operatori)
+  const varPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+  const jsKeywords = new Set([
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+    'var', 'let', 'const', 'if', 'else', 'return', 'function',
+    'typeof', 'instanceof', 'new', 'this', 'super', 'class',
+    'extends', 'static', 'async', 'await', 'yield', 'delete',
+    'void', 'in', 'of', 'break', 'continue', 'switch', 'case',
+    'default', 'throw', 'try', 'catch', 'finally', 'while',
+    'do', 'for', 'with', 'debugger', 'export', 'import'
+  ]);
+
+  const usedVars = [...expression.matchAll(varPattern)]
+    .map(m => m[1])
+    .filter(v => !jsKeywords.has(v) && !declaredVars.has(v));
+
+  // 3. Segnala variabili non dichiarate
+  if (usedVars.length > 0) {
+    const uniqueVars = [...new Set(usedVars)];
+    return {
+      valid: false,
+      error: `Variabili non dichiarate in ${context}: ${uniqueVars.join(', ')}`
+    };
+  }
+
+  return { valid: true };
+}
+
 // Validazione schema
 const errors = [];
 
@@ -40,6 +80,8 @@ if (Array.isArray(dslRaw.steps)) {
         if (!step.var || typeof step.var !== 'string') {
             errors.push(`Step ${idx}: campo "var" obbligatorio (string)`);
         } else {
+            // Aggiungi variabile al set PRIMA di validare skip_if
+            // (skip_if può riferirsi solo a variabili dichiarate prima)
             declaredVars.add(step.var);
         }
 
@@ -51,9 +93,22 @@ if (Array.isArray(dslRaw.steps)) {
             errors.push(`Step ${idx}: campo "type" deve essere "boolean", "string" o "number"`);
         }
 
-        // skip_if è opzionale, ma se presente deve essere string
-        if (step.skip_if !== undefined && typeof step.skip_if !== 'string') {
-            errors.push(`Step ${idx}: campo "skip_if" deve essere string (se presente)`);
+        // skip_if è opzionale, ma se presente deve essere string e JS valido
+        if (step.skip_if !== undefined) {
+            if (typeof step.skip_if !== 'string') {
+                errors.push(`Step ${idx}: campo "skip_if" deve essere string (se presente)`);
+            } else {
+                // Crea set con variabili dichiarate PRIMA di questo step
+                const declaredVarsBefore = new Set([...declaredVars].filter(v => v !== step.var));
+                const skipValidation = validateJSExpression(
+                    step.skip_if,
+                    declaredVarsBefore,
+                    `Step ${idx} campo "skip_if"`
+                );
+                if (!skipValidation.valid) {
+                    errors.push(skipValidation.error);
+                }
+            }
         }
     });
 }
@@ -63,6 +118,16 @@ if (Array.isArray(dslRaw.reasons_if_fail)) {
     dslRaw.reasons_if_fail.forEach((reason, idx) => {
         if (!reason.when || typeof reason.when !== 'string') {
             errors.push(`Reason ${idx}: campo "when" obbligatorio (string)`);
+        } else {
+            // Valida sintassi JavaScript e variabili usate in when
+            const whenValidation = validateJSExpression(
+                reason.when,
+                declaredVars,
+                `Reason ${idx} campo "when"`
+            );
+            if (!whenValidation.valid) {
+                errors.push(whenValidation.error);
+            }
         }
 
         if (!reason.reason || typeof reason.reason !== 'string') {

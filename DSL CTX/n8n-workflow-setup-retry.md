@@ -93,6 +93,38 @@ Passare `max_tentativi` nell'input iniziale del Tool:
 
 **Codice:** Usa `dsl-schema-validator.js`
 
+**Validazioni eseguite:**
+
+1. **Schema strutturale:**
+   - Campi obbligatori: title, evaluation_mode, steps, reasons_if_fail, next_actions_if_ok
+   - Tipi corretti: type ("boolean"/"string"/"number"), blocking (boolean)
+   - Coerenza variabili in check_after_vars
+
+2. **Validazione JavaScript (NEW):**
+   - Sintassi valida in `when` e `skip_if`
+   - Variabili usate devono essere dichiarate in steps
+   - `skip_if` può usare solo variabili dichiarate PRIMA di quel step
+
+**Esempi errori rilevati:**
+```javascript
+// ❌ Sintassi invalida
+"when": "isee < 40000 &&"
+→ "Sintassi JavaScript invalida in Reason 0 campo 'when': Unexpected token ')'"
+
+// ❌ Variabile non dichiarata
+"when": "cittadino_italia === true"  // typo: "italia" invece di "italiano"
+→ "Variabili non dichiarate in Reason 0 campo 'when': cittadino_italia"
+
+// ❌ Skip_if usa variabile dichiarata dopo
+Step 1: "var": "cittadino_italiano"
+Step 2: "var": "extracom", "skip_if": "cittadino_italiano === true"  ✅ OK
+Step 3: "var": "isee_valido", "skip_if": "extracom === true"  ✅ OK
+Step 4: "var": "residenza", "skip_if": "isee_valido === true"  ✅ OK
+
+// Ma:
+Step 2: "skip_if": "isee_valido === true"  ❌ ERRORE (isee_valido dichiarato dopo)
+```
+
 **Input automatico dal nodo precedente** (con pass-through):
 ```json
 {

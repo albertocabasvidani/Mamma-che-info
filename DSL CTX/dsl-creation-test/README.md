@@ -205,10 +205,19 @@ I file `dsl-schema-validator.js` e `nodo-code-generazione-prompt.js` sono compat
 
 - **dsl-schema-validator.js**: Valida struttura DSL e gestisce retry loop
   - Estrae DSL (wrappato o diretto)
-  - Valida schema e decide se ritentare
+  - Valida schema strutturale (campi, tipi)
+  - **Valida sintassi JavaScript** in `when` e `skip_if`
+  - **Verifica variabili** usate in espressioni JS
+  - Gestisce retry logic
   - Input: `$input.first().json` (DSL + contatori)
   - Output: `{ valid, dsl?, errors?, retry, tentativo_numero, max_tentativi }`
   - Retry logic: `retry: true` se `tentativo < max_tentativi`
+
+**Validazioni JavaScript:**
+- ✅ Sintassi JS valida (via `new Function()`)
+- ✅ Variabili usate devono essere dichiarate in steps
+- ✅ `skip_if` può usare solo variabili dichiarate prima
+- ✅ Rileva typo nei nomi variabili
 
 Vedi `n8n-workflow-setup-retry.md` per setup completo del workflow.
 
