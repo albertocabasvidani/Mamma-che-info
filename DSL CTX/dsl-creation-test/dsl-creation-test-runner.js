@@ -7,8 +7,16 @@ const path = require('path');
 const validatorPath = path.join(__dirname, '..', 'dsl-schema-validator.js');
 const validatorCode = fs.readFileSync(validatorPath, 'utf8');
 
-// Estrae la funzione validateDSLSchema dal file
-const validateDSLSchema = eval(`(${validatorCode.match(/function validateDSLSchema\(dsl\) \{[\s\S]*?\n\}/)[0]})`);
+// Crea funzione di validazione che simula ambiente n8n
+const validateDSLSchema = (dsl) => {
+  // Simula l'oggetto $input di n8n
+  const $input = {
+    first: () => ({ json: dsl })
+  };
+
+  // Esegue il codice del validatore wrappato in una funzione
+  return eval(`(function() { ${validatorCode} })()`);;
+};
 
 // Carica variabili d'ambiente da file .env se esiste
 function loadEnv() {
