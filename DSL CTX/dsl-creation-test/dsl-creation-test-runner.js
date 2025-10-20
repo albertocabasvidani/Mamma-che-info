@@ -77,25 +77,27 @@ const BASE_PROMPT = `Sei un esperto nella conversione di requisiti burocratici i
 
 \`\`\`json
 {
-  "title": "<string>",
-  "evaluation_mode": "incremental",
-  "steps": [
-    {
-      "var": "<string>",
-      "ask": "<string>",
-      "type": "<'boolean' | 'string' | 'number'>",
-      "skip_if": "<string | opzionale>"
-    }
-  ],
-  "reasons_if_fail": [
-    {
-      "when": "<string>",
-      "reason": "<string>",
-      "check_after_vars": ["<string>"],
-      "blocking": true
-    }
-  ],
-  "next_actions_if_ok": ["<string>"]
+  "dsl": {
+    "title": "<string>",
+    "evaluation_mode": "incremental",
+    "steps": [
+      {
+        "var": "<string>",
+        "ask": "<string>",
+        "type": "<'boolean' | 'string' | 'number'>",
+        "skip_if": "<string | opzionale>"
+      }
+    ],
+    "reasons_if_fail": [
+      {
+        "when": "<string>",
+        "reason": "<string>",
+        "check_after_vars": ["<string>"],
+        "blocking": true
+      }
+    ],
+    "next_actions_if_ok": ["<string>"]
+  }
 }
 \`\`\`
 
@@ -130,51 +132,53 @@ const BASE_PROMPT = `Sei un esperto nella conversione di requisiti burocratici i
 
 \`\`\`json
 {
-  "title": "Bonus nuovi nati",
-  "evaluation_mode": "incremental",
-  "steps": [
-    {
-      "var": "cittadino_italiano_ue",
-      "ask": "Il genitore richiedente è cittadino italiano o dell'Unione Europea? (sì/no)",
-      "type": "boolean"
-    },
-    {
-      "var": "extracom_permesso",
-      "ask": "Il genitore richiedente è cittadino extracomunitario con permesso di soggiorno valido? (sì/no)",
-      "type": "boolean",
-      "skip_if": "cittadino_italiano_ue === true"
-    },
-    {
-      "var": "figli_in_tutela_o_affido",
-      "ask": "Hai figli in affido o sotto tutela? (sì/no)",
-      "type": "boolean"
-    },
-    {
-      "var": "documentazione_tutela",
-      "ask": "Hai la documentazione comprovante? (sì/no)",
-      "type": "boolean",
-      "skip_if": "figli_in_tutela_o_affido === false"
-    }
-  ],
-  "reasons_if_fail": [
-    {
-      "when": "cittadino_italiano_ue === false && extracom_permesso === false",
-      "reason": "Requisito cittadinanza: il genitore richiedente deve essere cittadino italiano/UE oppure extracomunitario con permesso valido.",
-      "check_after_vars": ["cittadino_italiano_ue", "extracom_permesso"],
-      "blocking": true
-    },
-    {
-      "when": "figli_in_tutela_o_affido === true && documentazione_tutela === false",
-      "reason": "Per figli in affido o tutela è richiesta la documentazione comprovante.",
-      "check_after_vars": ["figli_in_tutela_o_affido", "documentazione_tutela"],
-      "blocking": true
-    }
-  ],
-  "next_actions_if_ok": [
-    "Prenota appuntamento con CAF o Patronato di zona",
-    "Prepara documento di identità valido",
-    "Se extracomunitario: prepara permesso di soggiorno valido"
-  ]
+  "dsl": {
+    "title": "Bonus nuovi nati",
+    "evaluation_mode": "incremental",
+    "steps": [
+      {
+        "var": "cittadino_italiano_ue",
+        "ask": "Il genitore richiedente è cittadino italiano o dell'Unione Europea? (sì/no)",
+        "type": "boolean"
+      },
+      {
+        "var": "extracom_permesso",
+        "ask": "Il genitore richiedente è cittadino extracomunitario con permesso di soggiorno valido? (sì/no)",
+        "type": "boolean",
+        "skip_if": "cittadino_italiano_ue === true"
+      },
+      {
+        "var": "figli_in_tutela_o_affido",
+        "ask": "Hai figli in affido o sotto tutela? (sì/no)",
+        "type": "boolean"
+      },
+      {
+        "var": "documentazione_tutela",
+        "ask": "Hai la documentazione comprovante? (sì/no)",
+        "type": "boolean",
+        "skip_if": "figli_in_tutela_o_affido === false"
+      }
+    ],
+    "reasons_if_fail": [
+      {
+        "when": "cittadino_italiano_ue === false && extracom_permesso === false",
+        "reason": "Requisito cittadinanza: il genitore richiedente deve essere cittadino italiano/UE oppure extracomunitario con permesso valido.",
+        "check_after_vars": ["cittadino_italiano_ue", "extracom_permesso"],
+        "blocking": true
+      },
+      {
+        "when": "figli_in_tutela_o_affido === true && documentazione_tutela === false",
+        "reason": "Per figli in affido o tutela è richiesta la documentazione comprovante.",
+        "check_after_vars": ["figli_in_tutela_o_affido", "documentazione_tutela"],
+        "blocking": true
+      }
+    ],
+    "next_actions_if_ok": [
+      "Prenota appuntamento con CAF o Patronato di zona",
+      "Prepara documento di identità valido",
+      "Se extracomunitario: prepara permesso di soggiorno valido"
+    ]
+  }
 }
 \`\`\`
 
@@ -231,7 +235,8 @@ Segui rigorosamente lo schema e le regole indicate sopra.
 Genera SOLO il JSON valido, senza commenti o markdown code blocks.
 Il JSON deve iniziare con { e terminare con }.`;
 
-  return await callOpenAI(BASE_PROMPT, userMessage);
+  const result = await callOpenAI(BASE_PROMPT, userMessage);
+  return result.dsl;
 }
 
 // Funzione per correggere DSL
@@ -243,7 +248,7 @@ ${requisiti}
 
 DSL DA CORREGGERE:
 \`\`\`json
-${JSON.stringify(dsl, null, 2)}
+${JSON.stringify({ dsl }, null, 2)}
 \`\`\`
 
 ERRORI DI VALIDAZIONE:
@@ -259,7 +264,8 @@ Verifica che i nomi delle variabili siano consistenti.
 Genera SOLO il JSON valido, senza commenti o markdown code blocks.
 Il JSON deve iniziare con { e terminare con }.`;
 
-  return await callOpenAI(BASE_PROMPT, userMessage);
+  const result = await callOpenAI(BASE_PROMPT, userMessage);
+  return result.dsl;
 }
 
 // Funzione principale di test
