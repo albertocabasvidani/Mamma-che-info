@@ -256,6 +256,45 @@ cd dsl-execution-test
 node dsl-test-runner.js ../DSL\ definitive/dsl-assegno-unico.json
 ```
 
+### **NUOVO**: Test Automatico Completo DSL
+
+**Generatore automatico di TUTTE le casistiche possibili:**
+
+```bash
+cd dsl-execution-test
+
+# Genera e testa automaticamente TUTTE le combinazioni
+node dsl-automated-test-generator.js <dsl-file.json>
+
+# Esempio: test DSL appena generata
+node dsl-automated-test-generator.js ../dsl-creation-test/tests/checklist-bonus-nido-text/dsl-generated.json
+```
+
+**Output:**
+- `automated-tests/{dsl-name}/automated-test-report.md` - Report dettagliato
+- `automated-tests/{dsl-name}/automated-test-results.json` - Dati JSON
+
+**Caratteristiche:**
+- ✅ Genera automaticamente tutte le combinazioni (es. 8 boolean = 256 casi)
+- ✅ Smart sampling per DSL complesse (>1000 casi)
+- ✅ Simula esattamente il workflow n8n (CTX, skip_if, incremental)
+- ✅ Report con CTX completa, trace domande, motivi blocco
+- ✅ Tempo: ~1-2 secondi per 256 test
+
+**Esempio output:**
+```
+📊 Analisi DSL:
+   Boolean steps: 8
+   Casistiche stimate: ~256
+✅ Generati 256 casi test
+
+📊 RISULTATI:
+Totale test: 256
+✅ Passati: 256 (100%)
+```
+
+Vedi `dsl-execution-test/README-AUTOMATED-GENERATOR.md` per documentazione completa.
+
 ### Validare DSL Manualmente
 
 ```javascript

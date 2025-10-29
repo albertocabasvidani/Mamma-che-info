@@ -1,0 +1,75 @@
+{
+  "title": "Checklist Bonus Nido INPS",
+  "evaluation_mode": "incremental",
+  "steps": [
+    {
+      "var": "cittadino_italiano_ue",
+      "ask": "Il richiedente è cittadino italiano o dell'Unione Europea? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "extracom_permesso",
+      "ask": "Il richiedente è cittadino extracomunitario con permesso di soggiorno valido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "cittadino_italiano_ue === true"
+    },
+    {
+      "var": "figlio_nato_o_adottato",
+      "ask": "Hai un figlio nato o adottato nel periodo di riferimento? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "documentazione_figlio",
+      "ask": "Hai la documentazione comprovante la nascita o l'adozione? (sì/no)",
+      "type": "boolean",
+      "skip_if": "figlio_nato_o_adottato === false"
+    },
+    {
+      "var": "iscrizione_asilo_nido",
+      "ask": "Il figlio è iscritto a un asilo nido? (sì/no)",
+      "type": "boolean"
+    },
+    {
+      "var": "documentazione_iscrizione",
+      "ask": "Hai la documentazione comprovante l'iscrizione all'asilo nido? (sì/no)",
+      "type": "boolean",
+      "skip_if": "iscrizione_asilo_nido === false"
+    }
+  ],
+  "reasons_if_fail": [
+    {
+      "when": "cittadino_italiano_ue === false && extracom_permesso === false",
+      "reason": "Requisito cittadinanza: il richiedente deve essere cittadino italiano/UE oppure extracomunitario con permesso valido.",
+      "check_after_vars": [
+        "cittadino_italiano_ue",
+        "extracom_permesso"
+      ],
+      "blocking": true
+    },
+    {
+      "when": "figlio_nato_o_adottato === true && documentazione_figlio === false",
+      "reason": "È richiesta la documentazione comprovante la nascita o l'adozione del figlio.",
+      "check_after_vars": [
+        "figlio_nato_o_adottato",
+        "documentazione_figlio"
+      ],
+      "blocking": true
+    },
+    {
+      "when": "iscrizione_asilo_nido === true && documentazione_iscrizione === false",
+      "reason": "È richiesta la documentazione comprovante l'iscrizione all'asilo nido.",
+      "check_after_vars": [
+        "iscrizione_asilo_nido",
+        "documentazione_iscrizione"
+      ],
+      "blocking": true
+    }
+  ],
+  "next_actions_if_ok": [
+    "Prenota appuntamento con CAF o Patronato di zona",
+    "Prepara documento di identità valido",
+    "Se extracomunitario: prepara permesso di soggiorno valido",
+    "Prepara documentazione comprovante la nascita o l'adozione del figlio",
+    "Prepara documentazione comprovante l'iscrizione all'asilo nido"
+  ]
+}
