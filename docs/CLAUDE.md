@@ -15,13 +15,74 @@ Sistema di generazione automatica di **DSL (Domain Specific Language) JSON** per
 
 ---
 
+## Struttura Progetto
+
+```
+/
+├── web-app/               # Applicazione web
+│   ├── index.html         # UI principale per test DSL
+│   ├── assets/            # CSS, JS, immagini
+│   └── examples/          # Esempi DSL embedded
+│
+├── backend/               # Codice backend
+│   ├── n8n/              # Workflow n8n
+│   │   ├── nodes/        # Code nodes n8n (generate-prompt, validate-dsl, process-dsl, create-ctx)
+│   │   └── workflows/    # Export workflow JSON
+│   └── api-gateway/      # (Vuoto - per future integrazioni)
+│
+├── cli-tools/            # Tool standalone (non-n8n)
+│   ├── dsl-creator/      # Tool generazione DSL
+│   │   ├── bin/          # Eseguibili (setup-check.js)
+│   │   └── lib/          # Librerie (workflow-simulator.js, schema-validator.js)
+│   └── dsl-tester/       # Tool test DSL
+│       ├── bin/          # Eseguibili (generate-tests.js)
+│       └── lib/          # Librerie (test-runner.js)
+│
+├── dsl-library/          # DSL definitive e schemi
+│   ├── pratiche/         # DSL complete per pratiche (assegno-unico, bonus-nido, congedo-maternita, bonus-nuovi-nati)
+│   └── schemas/          # Schemi JSON (schema-incremental, schema-batch)
+│
+├── resources/            # Materiali input
+│   ├── checklists/       # Checklist INPS PDF originali
+│   ├── requirements/     # Requisiti estratti/processati (.txt, .md)
+│   └── vademecum/        # Vademecum normativi PDF
+│
+├── tests/                # Output test organizzati
+│   └── cli-tools/
+│       ├── dsl-creator/  # Test generazione DSL
+│       │   └── tests/    # Per pratica (workflow-execution-report, dsl-generated, execution-data)
+│       └── dsl-tester/   # Test esecuzione DSL
+│           └── automated-tests/  # Per pratica (automated-test-report, automated-test-results)
+│
+├── docs/                 # Documentazione consolidata
+│   ├── CLAUDE.md         # Questo file
+│   ├── architecture/     # Architettura sistema (n8n-workflow, dsl-generation-strategy)
+│   ├── guides/           # Guide uso (dsl-creator-tool, dsl-tester-tool, requirements-extraction)
+│   └── integrations/     # Integrazioni (chatbot-caf, supabase - non attive)
+│
+└── archive/              # File legacy/obsoleti
+    ├── deprecated/       # File non più usati (kong.yml)
+    ├── old-code/         # Codice sostituito
+    ├── old-docs/         # Documentazione superata
+    └── old-tests/        # Test manuali vecchi
+```
+
+**Vantaggi struttura:**
+- Separazione netta tra codice n8n (`backend/`) e tool locali (`cli-tools/`)
+- Input (`resources/`) separato da output (`tests/`)
+- DSL definitive in libreria centrale (`dsl-library/`)
+- Documentazione consolidata (`docs/`)
+- Test organizzati per fase (creation/execution)
+
+---
+
 ## Architettura del Sistema
 
 ### 1. Componenti n8n (Produzione)
 
 **File critici per n8n Code nodes:**
-- `dsl-creation-test/nodo-code-generazione-prompt.js` - Genera prompt OpenAI (system + user message)
-- `dsl-creation-test/dsl-schema-validator.js` - Valida schema DSL + gestisce retry logic
+- `backend/n8n/nodes/generate-prompt.js` - Genera prompt OpenAI (system + user message)
+- `backend/n8n/nodes/validate-dsl.js` - Valida schema DSL + gestisce retry logic
 
 **Input n8n validator:**
 ```javascript
@@ -29,26 +90,26 @@ const input = $input.first().json.message.content;
 // Nota: legge da message.content, NON da json diretto
 ```
 
-**Workflow n8n completo:** Vedi `n8n-workflow-architecture.md`
+**Workflow n8n completo:** Vedi `docs/architecture/n8n-workflow.md`
 
 ### 2. Test Runner Locale
 
 **Esegue il loop completo generazione→validazione→correzione:**
 ```bash
-cd dsl-creation-test
-node dsl-creation-test-runner.js "requisiti qui"
+cd cli-tools/dsl-creator
+node lib/workflow-simulator.js "requisiti qui"
 # oppure
-node dsl-creation-test-runner.js requisiti.txt
+node lib/workflow-simulator.js ../../resources/requirements/requisiti.txt
 ```
 
 **Configurazione:**
 - Crea `.env` con `OPENAI_API_KEY=sk-...`
 - MAX_TENTATIVI configurabile (default: 3)
-- Output: `tests/{nome}/dsl-generated.json` + report
+- Output: `tests/cli-tools/dsl-creator/tests/{nome}/dsl-generated.json` + report
 
 ### 3. Struttura DSL
 
-**Schema incrementale** (`schema-dsl-incrementale.json`):
+**Schema incrementale** (`dsl-library/schemas/schema-incremental.json`):
 ```json
 {
   "title": "Nome Pratica",
@@ -73,7 +134,7 @@ node dsl-creation-test-runner.js requisiti.txt
 }
 ```
 
-**Esempi completi:** `DSL definitive/`
+**Esempi completi:** `dsl-library/pratiche/`
 
 ---
 
@@ -81,7 +142,7 @@ node dsl-creation-test-runner.js requisiti.txt
 
 ### Fase 1: Generazione Prompt (n8n Code node)
 
-**File:** `dsl-creation-test/nodo-code-generazione-prompt.js`
+**File:** `backend/n8n/nodes/generate-prompt.js`
 
 **Logica:**
 1. Legge `tentativo_numero` dall'input e incrementa
@@ -112,7 +173,7 @@ node dsl-creation-test-runner.js requisiti.txt
 
 ### Fase 3: Validazione Schema (n8n Code node)
 
-**File:** `dsl-creation-test/dsl-schema-validator.js`
+**File:** `backend/n8n/nodes/validate-dsl.js`
 
 **Validazioni:**
 1. **Schema strutturale:** campi obbligatori, tipi corretti
@@ -179,7 +240,7 @@ Step 2: { "skip_if": "var_step_5 === true" }  // var_step_5 dichiarato dopo
 
 **Causa:** Input testuale troppo complesso, OpenAI si confonde con parole chiave (NASPI, gestione separata, contributi).
 
-**Soluzione proposta:** Vedi `strategia-generazione-dsl-affidabile.md`
+**Soluzione proposta:** Vedi `docs/architecture/dsl-generation-strategy.md`
 
 ### Strategia Multi-Fase (da implementare)
 
@@ -207,53 +268,35 @@ Se < 80% → [FASE 4] Revisione umana + Golden examples
 
 ### Test DSL Generation Loop
 
-**CONSIGLIATO: Usa il nuovo simulatore workflow n8n** (replica esatta del comportamento n8n):
+**CONSIGLIATO: Usa il simulatore workflow n8n** (replica esatta del comportamento n8n):
 
 ```bash
-cd dsl-creation-test
+cd cli-tools/dsl-creator
 
 # Verifica configurazione
-node test-setup.js
+node bin/setup-check.js
 
 # Test con requisiti da file
-node n8n-workflow-simulator.js ../requisiti-congedo-maternita.md
+node lib/workflow-simulator.js ../../resources/requirements/congedo-maternita.md
 
 # Test con testo diretto
-node n8n-workflow-simulator.js "Requisito 1, Requisito 2..."
+node lib/workflow-simulator.js "Requisito 1, Requisito 2..."
 
-# Output in tests/{nome-pratica}/
+# Output in tests/cli-tools/dsl-creator/tests/{nome-pratica}/
 # - workflow-execution-report.md  (report dettagliato con timeline)
 # - dsl-generated.json             (DSL finale se valida)
 # - execution-data.json            (dati raw per debug)
 ```
 
-**Alternativa (vecchio script, meno fedele a n8n):**
-
-```bash
-cd dsl-creation-test
-
-# Test con requisiti da file
-node dsl-creation-test-runner.js ../requisiti-congedo-maternita.md
-
-# Test con testo diretto
-node dsl-creation-test-runner.js "Requisito 1, Requisito 2..."
-
-# Output in tests/{nome-pratica}/
-```
-
-**Differenze chiave:**
-- ✅ `n8n-workflow-simulator.js`: simula esattamente l'ambiente n8n, usa i file dei nodi originali
-- ⚠️ `dsl-creation-test-runner.js`: estrae prompt con regex, simulazione parziale
-
-Vedi `dsl-creation-test/README-SIMULATOR.md` per documentazione completa.
+Vedi `docs/guides/dsl-creator-tool.md` per documentazione completa.
 
 ### Test DSL Execution (Simulazione Chat)
 
 ```bash
-cd dsl-execution-test
+cd cli-tools/dsl-tester
 
 # Esegue una DSL esistente con risposte simulate
-node dsl-test-runner.js ../DSL\ definitive/dsl-assegno-unico.json
+node lib/test-runner.js ../../dsl-library/pratiche/assegno-unico.json
 ```
 
 ### **NUOVO**: Test Automatico Completo DSL
@@ -261,18 +304,18 @@ node dsl-test-runner.js ../DSL\ definitive/dsl-assegno-unico.json
 **Generatore automatico di TUTTE le casistiche possibili:**
 
 ```bash
-cd dsl-execution-test
+cd cli-tools/dsl-tester
 
 # Genera e testa automaticamente TUTTE le combinazioni
-node dsl-automated-test-generator.js <dsl-file.json>
+node bin/generate-tests.js <dsl-file.json>
 
 # Esempio: test DSL appena generata
-node dsl-automated-test-generator.js ../dsl-creation-test/tests/checklist-bonus-nido-text/dsl-generated.json
+node bin/generate-tests.js ../../tests/cli-tools/dsl-creator/tests/checklist-bonus-nido-text/dsl-generated.json
 ```
 
 **Output:**
-- `automated-tests/{dsl-name}/automated-test-report.md` - Report dettagliato
-- `automated-tests/{dsl-name}/automated-test-results.json` - Dati JSON
+- `tests/cli-tools/dsl-tester/automated-tests/{dsl-name}/automated-test-report.md` - Report dettagliato
+- `tests/cli-tools/dsl-tester/automated-tests/{dsl-name}/automated-test-results.json` - Dati JSON
 
 **Caratteristiche:**
 - ✅ Genera automaticamente tutte le combinazioni (es. 8 boolean = 256 casi)
@@ -293,7 +336,7 @@ Totale test: 256
 ✅ Passati: 256 (100%)
 ```
 
-Vedi `dsl-execution-test/README-AUTOMATED-GENERATOR.md` per documentazione completa.
+Vedi `docs/guides/dsl-tester-tool.md` per documentazione completa.
 
 ### Validare DSL Manualmente
 
@@ -318,15 +361,15 @@ console.log(result); // { valid: true/false, errors: [...] }
 
 ## File Critici da Non Modificare Senza Testare
 
-1. **`dsl-schema-validator.js`** - Usato in produzione n8n
+1. **`backend/n8n/nodes/validate-dsl.js`** - Usato in produzione n8n
    - Input DEVE essere `$input.first().json.message.content`
    - Output con `retry` flag per IF node
 
-2. **`nodo-code-generazione-prompt.js`** - Usato in produzione n8n
+2. **`backend/n8n/nodes/generate-prompt.js`** - Usato in produzione n8n
    - Gestisce `tentativo_numero` automaticamente
    - Legge `MAX_TENTATIVI` da env/input
 
-3. **Schema DSL** (`schema-dsl-incrementale.json`)
+3. **Schema DSL** (`dsl-library/schemas/schema-incremental.json`)
    - Struttura fissa per tutte le DSL
    - Modifica richiede aggiornamento validator + prompt
 
@@ -377,11 +420,11 @@ Per requisiti OR (almeno uno deve essere vero):
 
 ## Documenti Chiave
 
-- **`n8n-workflow-architecture.md`** - Architettura completa workflow n8n
-- **`n8n-workflow-setup-retry.md`** - Setup retry loop configurabile
-- **`strategia-generazione-dsl-affidabile.md`** - Soluzione al problema generazione errata
-- **`linee-guida-compilazione-requisiti.md`** - Come scrivere requisiti per DSL
-- **`requisiti-congedo-maternita.md`** - Esempio requisiti estratti da vademecum
+- **`docs/architecture/n8n-workflow.md`** - Architettura completa workflow n8n
+- **`docs/architecture/n8n-workflow-setup-retry.md`** - Setup retry loop configurabile
+- **`docs/architecture/dsl-generation-strategy.md`** - Soluzione al problema generazione errata
+- **`docs/guides/requirements-extraction.md`** - Come scrivere requisiti per DSL
+- **`resources/requirements/congedo-maternita.md`** - Esempio requisiti estratti da vademecum
 
 ---
 
@@ -404,22 +447,22 @@ MAX_DSL_RETRIES=3              # Default: 3 tentativi
 ### Quando Modificare il Validator
 
 Se aggiungi nuove validazioni:
-1. Modifica `dsl-schema-validator.js`
-2. Testa con `dsl-creation-test-runner.js`
+1. Modifica `backend/n8n/nodes/validate-dsl.js`
+2. Testa con `cli-tools/dsl-creator/lib/workflow-simulator.js`
 3. Verifica che `retry` flag funzioni correttamente
-4. Aggiorna esempi in `DSL definitive/`
+4. Aggiorna esempi in `dsl-library/pratiche/`
 
 ### Quando Modificare il Prompt
 
 Se cambi regole DSL:
-1. Modifica `nodo-code-generazione-prompt.js` (basePrompt)
+1. Modifica `backend/n8n/nodes/generate-prompt.js` (basePrompt)
 2. Aggiorna esempio in prompt
 3. Testa generazione con requisiti complessi
 4. Verifica che validator riconosca nuove regole
 
 ### Implementare Strategia Multi-Fase
 
-Quando pronto a implementare `strategia-generazione-dsl-affidabile.md`:
+Quando pronto a implementare `docs/architecture/dsl-generation-strategy.md`:
 1. Crea nodo "Normalizza Requisiti" (Fase 1)
 2. Modifica "Genera Prompt" per usare JSON normalizzato (Fase 2)
 3. Aggiungi nodo "Valida Semantica" con confidence score (Fase 3)
