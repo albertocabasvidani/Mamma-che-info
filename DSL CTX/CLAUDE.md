@@ -207,6 +207,28 @@ Se < 80% → [FASE 4] Revisione umana + Golden examples
 
 ### Test DSL Generation Loop
 
+**CONSIGLIATO: Usa il nuovo simulatore workflow n8n** (replica esatta del comportamento n8n):
+
+```bash
+cd dsl-creation-test
+
+# Verifica configurazione
+node test-setup.js
+
+# Test con requisiti da file
+node n8n-workflow-simulator.js ../requisiti-congedo-maternita.md
+
+# Test con testo diretto
+node n8n-workflow-simulator.js "Requisito 1, Requisito 2..."
+
+# Output in tests/{nome-pratica}/
+# - workflow-execution-report.md  (report dettagliato con timeline)
+# - dsl-generated.json             (DSL finale se valida)
+# - execution-data.json            (dati raw per debug)
+```
+
+**Alternativa (vecchio script, meno fedele a n8n):**
+
 ```bash
 cd dsl-creation-test
 
@@ -218,6 +240,12 @@ node dsl-creation-test-runner.js "Requisito 1, Requisito 2..."
 
 # Output in tests/{nome-pratica}/
 ```
+
+**Differenze chiave:**
+- ✅ `n8n-workflow-simulator.js`: simula esattamente l'ambiente n8n, usa i file dei nodi originali
+- ⚠️ `dsl-creation-test-runner.js`: estrae prompt con regex, simulazione parziale
+
+Vedi `dsl-creation-test/README-SIMULATOR.md` per documentazione completa.
 
 ### Test DSL Execution (Simulazione Chat)
 
