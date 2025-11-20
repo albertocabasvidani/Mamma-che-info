@@ -60,6 +60,7 @@ Genera prompt per l'AI che crea DSL strutturate. Include:
 
 **Regole chiave**:
 - Condizioni OR: `skip_if: "alt1 === true || alt2 === true || ..."`
+- Domande condizionali: se presuppone ASSENZA già dichiarata PRESENTE, usa skip_if
 - Reasons: `when: "alt1 === false && alt2 === false && ..."`
 - Title sempre dall'input utente, mai inventato
 
@@ -146,6 +147,30 @@ Per gestire alternative (A OPPURE B OPPURE C...):
 }
 ```
 
+## Pattern Domande Condizionali (evitare ridondanze)
+
+Per domande che presuppongono l'ASSENZA di qualcosa:
+
+```javascript
+// Esempio: "figlio non ancora nato" presuppone nessun figlio esistente
+{ "var": "figli_minorenni", "ask": "Hai figli minorenni? (sì/no)" }
+{ "var": "figli_18_21", "ask": "Hai figli 18-21? (sì/no)", "skip_if": "figli_minorenni === true" }
+{
+  "var": "richiesta_figlio_non_nato",
+  "ask": "Stai richiedendo per figlio non nato? (sì/no)",
+  "skip_if": "figli_minorenni === true || figli_18_21 === true"  // Skip se ha già figli
+}
+
+// Reason bloccante se richiesta per non nato
+{
+  "when": "richiesta_figlio_non_nato === true",
+  "reason": "La domanda può essere fatta solo dopo il parto",
+  "check_after_vars": ["richiesta_figlio_non_nato"]
+}
+```
+
+**Principio**: se risposte precedenti rendono una domanda impossibile/nonsense, usa skip_if.
+
 ## Workflow N8N
 
 1. **Input utente**: nome pratica + requisiti
@@ -180,7 +205,14 @@ Genera e esegue test per verificare:
 
 ## Modifiche Recenti
 
-### Fix Condizioni OR Multiple (oggi)
+### Domande Condizionali e Ridondanze (oggi)
+- Aggiunta gestione domande che presuppongono ASSENZA
+- Pattern skip_if per evitare domande nonsense/ridondanti
+- Esempio: "figlio non nato" → skip se ha già dichiarato figli esistenti
+- Guida requisiti aggiornata con sezione 5.1 per non-tecnici
+- Ottimizzato per GPT-5.1 (adaptive reasoning)
+
+### Fix Condizioni OR Multiple
 - Generalizzato pattern skip_if per N alternative
 - Aggiunta regola title dall'utente
 - Rimosso max_tentativi (gestione automatica)

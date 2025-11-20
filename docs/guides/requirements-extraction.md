@@ -106,10 +106,34 @@ Quando tutti devono essere soddisfatti, elencarli esplicitamente:
 - Richiedente residente in Italia e minore residente e minore convivente con richiedente
 
 ### 5. REQUISITI CONDIZIONALI
-Usare "se...":
+Usare "se..." per requisiti che si applicano solo in certi casi:
 - Se extracomunitario: permesso di soggiorno valido
 - Se nascita: domanda entro 120 giorni dal parto
 - Se lavoratore autonomo: categoria tra [elenco completo]
+
+#### 5.1 REQUISITI CHE PRESUPPONGONO ASSENZA
+Quando un requisito si applica solo a chi NON ha qualcosa, rendilo esplicito per evitare domande ridondanti.
+
+**✓ BUONI ESEMPI:**
+- "Se non hai già figli a carico: per nuovi nati la domanda può essere fatta solo dopo il parto"
+- "Solo per chi non ha ancora presentato domanda: verificare termine scadenza"
+- "Se non possiedi già un'abitazione: requisito prima casa"
+- "Per chi non ha altri benefici attivi: incompatibilità con bonus X"
+
+**✗ DA EVITARE (ambigui):**
+- "Tempistiche per nuovi nati: domanda solo dopo parto" (sembra generale ma si applica solo se non hai già figli)
+- "Requisito prima casa" (non chiaro se si applica a chi ha già casa)
+- "Domanda entro 90 giorni" (da quando? solo per chi non ha già fatto domanda?)
+
+**PERCHÉ È IMPORTANTE:**
+Senza questa precisione, il sistema potrebbe generare domande nonsense tipo:
+- Hai figli? → Sì
+- Il figlio è già nato? → (domanda inutile, ovviamente sì se ho già figli!)
+
+**COME RIFORMULARE:**
+- Identifica prerequisito implicito (es. "nuovi nati" → presuppone nessun figlio esistente)
+- Rendilo esplicito: "Se non hai già figli: ..."
+- Oppure inverti la logica: "Almeno un figlio (già nato) OPPURE in attesa di un figlio"
 
 ### 6. SCELTE MULTIPLE
 Elencare tutte le opzioni valide (non "varie", "diverse", ecc.):

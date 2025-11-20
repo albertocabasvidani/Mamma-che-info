@@ -62,6 +62,15 @@ const basePrompt = `Sei un esperto nella conversione di requisiti burocratici it
   * Step 3: var="opzione_c", ask="...", skip_if: "opzione_a === true || opzione_b === true"
   * (Se ci fosse opzione_d: skip_if: "opzione_a === true || opzione_b === true || opzione_c === true")
 
+**Domande condizionali (evitare ridondanze):**
+- Se una domanda presuppone l'ASSENZA di qualcosa già dichiarato PRESENTE, skipparla
+- Pattern: "domanda per chi NON ha X" → skip_if: "ha_dichiarato_x === true"
+- Esempi:
+  * "figlio non ancora nato" → skip_if se hai già dichiarato figli esistenti
+  * "prima domanda" → skip_if se hai già dichiarato domanda precedente
+  * "acquisto prima casa" → skip_if se hai già dichiarato proprietà casa
+- Principio: se risposte precedenti rendono la domanda impossibile/nonsense, usa skip_if
+
 **Reasons:**
 - when: condizione JavaScript del fallimento
 - check_after_vars: TUTTE le variabili usate in when
@@ -98,6 +107,12 @@ const basePrompt = `Sei un esperto nella conversione di requisiti burocratici it
         "skip_if": "figli_minorenni === true || figli_18_21_con_condizioni === true"
       },
       {
+        "var": "richiesta_per_figlio_non_nato",
+        "ask": "Stai richiedendo per un figlio non ancora nato (prima del parto)? (sì/no)",
+        "type": "boolean",
+        "skip_if": "figli_minorenni === true || figli_18_21_con_condizioni === true || figli_disabili_qualsiasi_eta === true"
+      },
+      {
         "var": "percepisce_reddito_cittadinanza",
         "ask": "Percepisci il reddito di cittadinanza? (sì/no)",
         "type": "boolean"
@@ -116,9 +131,15 @@ const basePrompt = `Sei un esperto nella conversione di requisiti burocratici it
     ],
     "reasons_if_fail": [
       {
-        "when": "figli_minorenni === false && figli_18_21_con_condizioni === false && figli_disabili_qualsiasi_eta === false",
-        "reason": "Requisito figli a carico: devi avere almeno un figlio minorenne (fino a 18 anni), oppure un figlio tra 18-21 anni con determinate condizioni, oppure un figlio disabile di qualsiasi età.",
-        "check_after_vars": ["figli_minorenni", "figli_18_21_con_condizioni", "figli_disabili_qualsiasi_eta"],
+        "when": "figli_minorenni === false && figli_18_21_con_condizioni === false && figli_disabili_qualsiasi_eta === false && richiesta_per_figlio_non_nato === false",
+        "reason": "Requisito figli a carico: devi avere almeno un figlio minorenne (fino a 18 anni), oppure un figlio tra 18-21 anni con determinate condizioni, oppure un figlio disabile di qualsiasi età, oppure essere in attesa di un figlio.",
+        "check_after_vars": ["figli_minorenni", "figli_18_21_con_condizioni", "figli_disabili_qualsiasi_eta", "richiesta_per_figlio_non_nato"],
+        "blocking": true
+      },
+      {
+        "when": "richiesta_per_figlio_non_nato === true",
+        "reason": "Per figli non ancora nati, la domanda può essere presentata solo dopo il parto.",
+        "check_after_vars": ["richiesta_per_figlio_non_nato"],
         "blocking": true
       },
       {
@@ -144,7 +165,7 @@ const basePrompt = `Sei un esperto nella conversione di requisiti burocratici it
 }
 \`\`\`
 
-Nota: Le domande con alternative (OR) usano skip_if a catena per evitare domande inutili. I nomi delle variabili sono identici in var, skip_if, when e check_after_vars.`;
+Nota: Le domande con alternative (OR) usano skip_if a catena. Le domande condizionali (che presuppongono assenza) usano skip_if per evitare ridondanze. I nomi delle variabili sono sempre identici in var, skip_if, when e check_after_vars.`;
 
 let userMessage = '';
 
